@@ -1,0 +1,8 @@
+.#*
+_client/
+_deps/
+_server/
+studies/
+servant_sketch/
+local
+/.depend

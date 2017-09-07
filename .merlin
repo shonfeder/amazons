@@ -1,0 +1,20 @@
+PKG lwt
+PKG batteries
+
+PKG eliom
+PKG eliom.client
+PKG eliom.server
+PKG eliom.ppx
+
+PKG ocsigenserver
+PKG ocsigen-toolkit
+
+PKG ppx_deriving
+PKG eliom.ppx.server
+PKG eliom.ppx.client
+
+S _client
+S _server
+
+B _server
+B _client
