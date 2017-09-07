@@ -1,6 +1,7 @@
 module Param = Eliom_parameter
 
 let default_css = [["css"; "amazons.css"]]
+let current_service = Eliom_service.reload_action
 
 [%%shared
   type game_id = int ref
@@ -49,7 +50,7 @@ module Make = struct
       Eliom_tools.F.html
         ~title:title
         ~css:style
-        body
+        (body current_service)
 
   let service ~path ~meth =
     Eliom_service.(create ~path:(Path path) ~meth ())
@@ -69,36 +70,29 @@ module Service = struct
   let games = Make.service
       ~path:["games"; ""]
       ~meth:(Get Param.unit)
-
-  let current = reload_action
 end
 
 module Content = struct
   open Eliom_content.Html.D
 
   module Page = struct
-    (* TODO pass current service in to menu (try it at least)*)
     (* TODO Correct documentation on basic menus
        - correct this http://ocsigen.org/eliom/6.2/manual/misc#basic_menu
        - with reference to this https://github.com/ocsigen/eliom/blob/master/src/lib/eliom_tools.eliom#L212 *)
     let menu current = Eliom_tools.D.menu
         ~classe:["main-menu"]
-        [ (Service.home, [pcdata "testing"])
-        ; (Service.games, [pcdata "games"]) ]
+        [ (Service.home,  [pcdata "Home"])
+        ; (Service.games, [pcdata "Games"]) ]
         ~service:current
         ()
 
-    let nav_bar = ul ~a:[a_class ["nav-bar"]]
-                     [ li [pcdata "Link to Home"]
-                     ; li [pcdata "Link to Games"]
-                     ; li [pcdata "Link to About"]]
-    let header =
+    let header current =
       [div [ h1  [pcdata "The Game of the Amazons"]
-           ; nav_bar ]]
+           ; menu current ]]
     let footer =
       [div [ p [pcdata "Footer content here"] ]]
-    let body content =
-      body (header @ content @ footer)
+    let body content current =
+      body (header current @ content @ footer)
   end
 
   let new_game_button =
@@ -149,6 +143,7 @@ let games_service = let open Eliom_service in
        ~body:Content.games)
 
 (* TODO If an existing game does not match id, give 404ish *)
+(* TODO Create Make.page function that takes a parameter *)
 let game_service = let open Eliom_service in
   Register.html Service.game
     begin
@@ -156,5 +151,5 @@ let game_service = let open Eliom_service in
         Eliom_tools.F.html
           ~title:"A Game of the Amazons"
           ~css:default_css
-          (Content.game game_id)
+          (Content.game game_id current_service)
     end
