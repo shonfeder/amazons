@@ -1,0 +1,32 @@
+* Tutorial
+** Get Tuareg and Merlin working correctly
+   Assuming you are using ~eliom-distillery~ to get started with a template, you'll
+   need to add the following to your ~.merlin~ file to get all the merlin goodness:
+   #+BEGIN_SRC merlin
+   PKG eliom
+   PKG eliom.client
+   PKG eliom.server
+   PKG eliom.ppx
+
+   PKG ocsigenserver
+   PKG ocsigen-toolkit
+
+   PKG ppx_deriving
+   PKG eliom.ppx.server
+   PKG eliom.ppx.client
+
+   S _client
+   S _server
+
+   B _server
+   B _client
+   #+END_SRC
+** How to add package dependencies
+   - Add these to your ~.merlin~
+   - Add them to the ~SERVER_PACKAGES~ and ~CLIENT_PACKAGES~ variables in the
+     ~Makefile.options~ as needed.
+** How to add ~*.ml~ modules
+   - Add these to your ~.merlin~
+   - Add them to the ~SERVER_FILES~ and ~CLIENT_FILES~ variables in the
+     ~Makefile.options~ as needed.
+
