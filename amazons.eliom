@@ -71,6 +71,10 @@ module Service = struct
       ~path:[""]
       ~meth:(Get Param.unit)
 
+  let new_game = Make.service
+      ~path:["games"; "new"]
+      ~meth:(Get Param.unit)
+
   let game = Make.service
       ~path:["games"; ""]
       ~meth:(Get Param.(suffix @@ int "game_id"))
@@ -138,6 +142,11 @@ module Content = struct
     Page.body
       [ h1 [pcdata ("Game " ^ string_of_int game_id ^ " should be here!")]
       ; Render.Html.board Game.Board.empty ]
+
+  let new_game =
+    Page.body
+      [ h2 [pcdata "Create a New Game"]
+      ; p  [pcdata "Interface to create a new game will be here"] ]
 end
 
 let amazons_service =
@@ -146,15 +155,21 @@ let amazons_service =
        ~title:"The Game of the Amazons"
        ~body:Content.home)
 
-let games_service =
-  Register.html Service.games
+let new_game_service =
+  Register.html Service.new_game
     (Make.page
-       ~title:"Games of the Amazons"
-       ~body:Content.games)
+       ~title:"A New Game of the Amazons"
+       ~body:Content.new_game)
 
 (* TODO If an existing game does not match id, give 404ish *)
 let game_service =
   Register.html Service.game
     (Make.page_param
-       ~title:"A Game of the Amazons"
+       ~title:"An Ongoing Game of the Amazons"
        ~body:Content.game)
+
+let games_service =
+  Register.html Service.games
+    (Make.page
+       ~title:"Games of the Amazons"
+       ~body:Content.games)
