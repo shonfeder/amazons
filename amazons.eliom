@@ -52,6 +52,14 @@ module Make = struct
         ~css:style
         (body current_service)
 
+  let page_param ~title ?(style=default_css) ~body =
+    fun param () -> Lwt.return @@
+      Eliom_tools.F.html
+        ~title:title
+        ~css:style
+        (body param current_service)
+
+
   let service ~path ~meth =
     Eliom_service.(create ~path:(Path path) ~meth ())
 end
@@ -89,8 +97,10 @@ module Content = struct
     let header current =
       [div [ h1  [pcdata "The Game of the Amazons"]
            ; menu current ]]
+
     let footer =
       [div [ p [pcdata "Footer content here"] ]]
+
     let body content current =
       body (header current @ content @ footer)
   end
@@ -136,20 +146,15 @@ let amazons_service =
        ~title:"The Game of the Amazons"
        ~body:Content.home)
 
-let games_service = let open Eliom_service in
+let games_service =
   Register.html Service.games
     (Make.page
        ~title:"Games of the Amazons"
        ~body:Content.games)
 
 (* TODO If an existing game does not match id, give 404ish *)
-(* TODO Create Make.page function that takes a parameter *)
-let game_service = let open Eliom_service in
+let game_service =
   Register.html Service.game
-    begin
-      fun game_id () -> Lwt.return @@
-        Eliom_tools.F.html
-          ~title:"A Game of the Amazons"
-          ~css:default_css
-          (Content.game game_id current_service)
-    end
+    (Make.page_param
+       ~title:"A Game of the Amazons"
+       ~body:Content.game)
