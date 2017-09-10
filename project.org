@@ -1,11 +1,19 @@
 * Tutorial
-** Get Tuareg and Merlin working correctly
-   Assuming you are using ~eliom-distillery~ to get started with a template, you'll
-   need to add the following to your ~.merlin~ file to get all the merlin goodness:
+** Getting Tuareg and Merlin working correctly
+
+   Tooling-wise, the OCaml ecosystem is currently in an awkward state. The
+   tooling available is relatively powerful, feature rich, compact, and
+   coherent, but the setup can be finicky and requires a lot of manual
+   maintenance. These are some tips for coaxing the tooling to behave well on
+   Eliom projects.
+
+   Assuming you are using ~eliom-distillery~ to get started with a template,
+   you'll need to add the following to your ~.merlin~ file to get all the merlin
+   goodness:
+
    #+BEGIN_SRC merlin
    PKG eliom
    PKG eliom.client
-   PKG eliom.server
    PKG eliom.ppx
 
    PKG ocsigenserver
@@ -18,9 +26,31 @@
    S _client
    S _server
 
-   B _server
    B _client
+   B _server
    #+END_SRC
+
+*** Gotchas and quirks?
+
+    Merlin was not linting my project correctly due to inconsistencies it was
+    detecting. I suspect this was due to some nuance in Eliom's client/server
+    scheme uses which was being muddled by the way I was declaring packages to
+    merlin in my config file.
+
+    The symptom was merlin throwing error messages like the following at the top
+    of my files:
+
+    #+BEGIN_SRC
+    The files /Users/sf/.opam/4.04.2/lib/eliom/client/eliom_client_core.cmi
+           and /Users/sf/.opam/4.04.2/lib/eliom/server/eliom_lib.cmi
+           make inconsistent assumptions over interface Eliom_lib
+    #+END_SRC
+
+    I was initially declaring both ~eliom.client~ and ~eliom.server~ packages in
+    my ~.merlin~. The solution turned out to be removing the ~elimo.server~
+    package from my ~.merlin~ file. This seemed to provide everything I needed
+    to lint my files, without generating the inconsistency error.
+
 ** How to add package dependencies
    - Add these to your ~.merlin~
    - Add them to the ~SERVER_PACKAGES~ and ~CLIENT_PACKAGES~ variables in the
