@@ -109,19 +109,6 @@ module Content = struct
       body (header current @ content @ footer)
   end
 
-  let new_game_button =
-    let onclick_handler =
-      [%client
-      (fun _ ->
-         let next_game_id = ~%game_ids := !(~%game_ids) + 1; !(~%game_ids)
-         in
-         let game_id = string_of_int next_game_id
-         in
-         Dom_html.window##alert(Js.string ("Input value :" ^ game_id)))
-      ]
-    in
-    button ~a:[a_onclick onclick_handler] [pcdata "Create a new game"]
-
   let home =
     Page.body
       [ h2 [pcdata "Rules"]
@@ -130,7 +117,7 @@ module Content = struct
                ~path:["wiki"; "Game_of_the_Amazons"]
                "The Game of the Amazons on Wikipedia"
            ; br ()
-           ; new_game_button ]
+           ]
       ]
 
   let games =
@@ -148,6 +135,27 @@ module Content = struct
       [ h2 [pcdata "Create a New Game"]
       ; p  [pcdata "Interface to create a new game will be here"] ]
 end
+
+(* TODO Functorize?
+
+   module type EndPoint =
+     type t
+     val registrar : Eliom_registration.('get -> 'post -> page Lwt.t) -> unit
+     val service   : Eliom_service.t
+     val content   : Eliom_content.Html.elt
+   end
+
+   module Make (E:EndPoint) = struct
+     val end_point = E.registrar E.Service E.content
+   end
+
+   Then we can define each endpoint in its own module.
+
+   We can specify a list of these modules, and just iterate the functor over
+   them.
+
+   Is this actually better?
+*)
 
 let amazons_service =
   Register.html Service.home
