@@ -3,12 +3,14 @@ module Param = Eliom_parameter
 let default_css = [["css"; "amazons.css"]]
 let current_service = Eliom_service.reload_action
 
-[%%shared
-  type game_id = int ref
+module State = struct
+  type game_id = int
 
-  let game_ids : game_id = ref 0
-  let active_games : game_id list = []
-]
+  let next_game_number : game_id ref
+    = ref 0
+  let games : (game_id * Game.t) list ref
+    = ref []
+end
 
 module Amazons = struct
   module Info = struct
@@ -50,14 +52,14 @@ module Make = struct
       Eliom_tools.F.html
         ~title:title
         ~css:style
-        (body current_service)
+        (body ())
 
   let page_param ~title ?(style=default_css) ~body =
     fun param () -> Lwt.return @@
       Eliom_tools.F.html
         ~title:title
         ~css:style
-        (body param current_service)
+        (body param ())
 
 
   let service ~path ~meth =
@@ -90,23 +92,27 @@ module Content = struct
   module Page = struct
     (* TODO Correct documentation on basic menus
        - correct this http://ocsigen.org/eliom/6.2/manual/misc#basic_menu
-       - with reference to this https://github.com/ocsigen/eliom/blob/master/src/lib/eliom_tools.eliom#L212 *)
-    let menu current = Eliom_tools.D.menu
-        ~classe:["main-menu"]
+       - with reference to this https://github.com/ocsigen/eliom/blob/master/src/lib/eliom_tools.eliom#L212
+       TODO Remove current, since it is the default *)
+    let menu =
+      let items =
         [ (Service.home,  [pcdata "Home"])
         ; (Service.games, [pcdata "Games"]) ]
-        ~service:current
-        ()
+      in
+        Eliom_tools.D.menu
+        ~classe:["main-menu"]
+        items
+        ~service:Eliom_service.reload_action
 
-    let header current =
-      [div [ h1  [pcdata "The Game of the Amazons"]
-           ; menu current ]]
+    let header () =
+      [div [ h1 [pcdata "The Game of the Amazons"]
+           ; menu () ]]
 
     let footer =
       [div [ p [pcdata "Footer content here"] ]]
 
-    let body content current =
-      body (header current @ content @ footer)
+    let body content () =
+      body (header () @ content @ footer)
   end
 
   let home =
