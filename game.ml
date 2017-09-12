@@ -7,6 +7,8 @@ module Result = BatResult
 
 let (%) = Batteries.(%)
 
+type coord = (int * int)
+
 module Piece = struct
   type kind =
     | Amazon
@@ -48,7 +50,6 @@ module Piece = struct
 end
 
 module Square = struct
-  type coord = (int * int)
   type t = { coord : coord
            ; piece : Piece.t option}
 
@@ -77,6 +78,7 @@ module Board = struct
   type coord = int * int
   type t = Sq.t list
 
+  (* TODO Rename to "new" *)
   let empty : t =
     let coord_values = (Aux.range 0 9) in
     let coords =
@@ -183,6 +185,8 @@ module Board = struct
       path_from_valid_piece color source target board
       >>= only_empty_squares
 
+  type change = Pc.color -> coord -> coord -> t -> (t, Sq.t) Result.t
+
   let fire : Pc.color -> coord -> coord -> t -> (t, Sq.t) Result.t
     = fun color source target board ->
       let open Result.Infix in
@@ -194,5 +198,35 @@ module Board = struct
       let open Result.Infix in
       clear_path_from_valid_piece color source target board
       >>= fun _                -> remove source board
-      >>= fun (amazon, board') -> place target amazon board
+      >>= fun (amazon, board') -> place target amazon board'
 end
+
+module Turn = struct
+
+  type t = { color:Piece.color
+           ; board:Board.t }
+
+  let next : t -> Board.t -> t
+    =
+    let toggle = function
+      | Piece.White -> Piece.Black
+      | Piece.Black -> Piece.White
+    in
+    fun turn board -> {color = toggle turn.color; board}
+
+  open Result.Infix
+
+  let move
+    : t -> coord -> coord -> (t, Square.t) Result.t
+    = fun turn source target ->
+      Board.move turn.color source target turn.board
+      >>= fun board -> Result.Ok {turn with board}
+
+  let fire
+    : t -> coord -> coord -> (t, Square.t) Result.t
+    = fun turn source target ->
+      Board.fire turn.color source target turn.board
+      >>= fun board -> Result.Ok (next turn board)
+end
+
+type t = Turn.t list
