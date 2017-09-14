@@ -16,15 +16,16 @@ module Piece = struct
   type color =
     | Black
     | White
-  type t = { color : color
-           ; kind  : kind}
+  type t =
+    { color : color
+    ; kind  : kind}
 
   let is_color : color -> t -> bool
     = fun color' {color} -> color = color'
 
   let is_white : t -> bool
     = function | {color = White} -> true
-               | _             -> false
+               | _               -> false
 
   let is_black : t -> bool
     = function | {color = Black} -> true
@@ -50,8 +51,9 @@ module Piece = struct
 end
 
 module Square = struct
-  type t = { coord : coord
-           ; piece : Piece.t option}
+  type t =
+    { coord : coord
+    ; piece : Piece.t option}
 
   let make : coord -> Piece.t -> t
     = fun coord piece -> {coord; piece = Some piece}
@@ -78,7 +80,6 @@ module Board = struct
   type coord = int * int
   type t = Sq.t list
 
-  (* TODO Rename to "new" *)
   let empty : t =
     let coord_values = (Aux.range 0 9) in
     let coords =
@@ -104,13 +105,15 @@ module Board = struct
       piece'] of the [piece'] already occupying the position designated by
       [coord] on [board]. *)
 
-  let place : coord -> Pc.t -> t -> (t, Sq.t) Result.t
+  let place
+    : coord -> Pc.t -> t -> (t, Sq.t) Result.t
     = fun coord piece board ->
       match select_square coord board with
       | Sq.{piece=None}, board' -> Result.Ok (Sq.make coord piece :: board')
       | square, _               -> Result.Bad square
 
-  let remove : coord -> t -> (Pc.t * t, Sq.t) Result.t
+  let remove
+    : coord -> t -> (Pc.t * t, Sq.t) Result.t
     = fun coord board ->
       let (square, board') = select_square coord board in
       match square with
@@ -169,10 +172,10 @@ module Board = struct
       let source_sq = square board source in
       let open BatOption.Infix in
       let valid_path =
-        Sq.piece source_sq                                (* Source Square is non-empty *)
-        >>= Aux.option_of_condition (Pc.is_color color)   (* is the appropriate color *)
-        >>= Aux.option_of_condition Pc.is_amazon          (* and has an amazon *)
-        >>= fun piece -> path_between source target board (* A valid path exists *)
+        Sq.piece source_sq                                  (* Source Square is non-empty, *)
+        >>= Aux.option_of_condition (Pc.is_color color)     (* is the appropriate color, *)
+        >>= Aux.option_of_condition Pc.is_amazon            (* and has an amazon, *)
+        >>= fun _amazon -> path_between source target board (* also a valid path exists. *)
       in
       match valid_path with
       | Some path -> Result.Ok path
@@ -184,8 +187,6 @@ module Board = struct
       let open Result.Infix in
       path_from_valid_piece color source target board
       >>= only_empty_squares
-
-  type change = Pc.color -> coord -> coord -> t -> (t, Sq.t) Result.t
 
   let fire : Pc.color -> coord -> coord -> t -> (t, Sq.t) Result.t
     = fun color source target board ->
@@ -203,16 +204,24 @@ end
 
 module Turn = struct
 
-  type t = { color:Piece.color
-           ; board:Board.t }
+  type t =
+    { color : Piece.color
+    ; board : Board.t }
 
-  let next : t -> Board.t -> t
-    =
-    let toggle = function
-      | Piece.White -> Piece.Black
-      | Piece.Black -> Piece.White
-    in
-    fun turn board -> {color = toggle turn.color; board}
+  let first : t =
+    { color = Piece.White
+    ; board = Board.setup }
+
+  let switch
+    : Piece.color -> Piece.color = function
+    | Piece.White -> Piece.Black
+    | Piece.Black -> Piece.White
+
+  let next
+    : t -> Board.t -> t
+    = fun field board ->
+      { color = switch field.color
+      ; board }
 
   open Result.Infix
 
