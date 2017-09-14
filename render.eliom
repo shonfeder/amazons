@@ -147,4 +147,9 @@ module Html = struct
         ~a:[classes]
         rows_of_cells
 
+  let game
+    : Game.t -> [> T.table] t
+    = fun (t :: turns) ->
+      board Game.Turn.(t.board)
+
 end
