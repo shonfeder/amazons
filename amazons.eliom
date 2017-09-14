@@ -9,7 +9,8 @@ module State = struct
   let next_game_number : game_id ref
     = ref 0
   let games : (game_id * Game.t) list ref
-    = ref []
+  (* XXX *)
+    = ref [(0, Game.start)]
 end
 
 module Amazons = struct
@@ -132,9 +133,19 @@ module Content = struct
       ; p  [pcdata "A list of games should be here"] ]
 
   let game game_id =
+    let lookup = BatList.Exceptionless.assoc in
+    let (title, content) =
+      match lookup game_id (!State.games) with
+      | None ->
+        ("Sorry!",
+         p [pcdata "This game doesn't exist"])
+      | Some game ->
+        ("Game of the amazons number " ^ string_of_int game_id,
+         Render.Html.game game)
+    in
     Page.body
-      [ h1 [pcdata ("Game " ^ string_of_int game_id ^ " should be here!")]
-      ; Render.Html.board Game.Board.empty ]
+      [ h2 [pcdata title]
+      ; content ]
 
   let new_game =
     Page.body
