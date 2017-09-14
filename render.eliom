@@ -14,6 +14,10 @@ module List = struct
   let singleton x = [x]
 end
 
+module Text = struct
+  let coord (x, y) = Printf.sprintf "%n-%n" x y
+end
+
 module Classes = struct
 
   (* type t = [`Class] Eliom_content.Html.D.attrib *)
@@ -45,9 +49,8 @@ module Classes = struct
         | Sq.{piece=Some _} -> "occupied"
         | Sq.{piece=None}   -> "empty"
     end
-    module Board = struct
-      let t = "board"
-    end
+    module Coord = struct let t = "coord" end
+    module Board = struct let t = "board" end
   end
 
   let piece
@@ -66,7 +69,11 @@ module Classes = struct
 
   let board
     = fun board -> classes
-      [ Name.Board.t ]
+        [ Name.Board.t ]
+
+  let coord
+    = fun coord -> classes
+        [ Name.Coord.t ]
 end
 
 module ID = struct
@@ -75,8 +82,7 @@ module ID = struct
 
   let square
     : Sq.t -> 'a t
-    = fun Sq.{coord=(x, y)} -> id @@
-      Printf.sprintf "%n-%n" x y
+    = id % Text.coord % Sq.coord
 end
 
 module Html = struct
@@ -94,22 +100,24 @@ module Html = struct
         ~a:[Classes.piece pc]
         []
 
+  let coord
+    : (int * int) -> [> T.div ] t
+    = fun coord ->
+      let open Html in
+      div
+        ~a:[Classes.coord coord]
+        [p [pcdata (Text.coord coord)]]
+
   let square
     : Sq.t -> [> T.td ] t
     = fun sq ->
-      (* XXX *)
-      let coord_str = let (x, y) = Sq.(sq.coord) in
-        Printf.sprintf "%n-%n" x y
+      let coord   = coord @@ Sq.coord sq
       in
-      let id_str  = Html.(p [pcdata coord_str])
-      in
-      (* XXX *)
       let id      = ID.square sq
       and classes = Classes.square sq
       and content = match Sq.(sq.piece) with
-        | None    -> [id_str]
-        | Some pc -> [piece pc;
-                      (*XXX*) id_str]
+        | None    -> [coord]
+        | Some pc -> [coord; piece pc]
       in
       Html.td
         ~a:[id; classes]
@@ -125,7 +133,7 @@ module Html = struct
     : Board.t -> [> T.table] t
     = fun board ->
       let classes = Classes.board board in
-      let range = Aux.range 0 9 in
+      let range   = Aux.range 0 9 in
       let xs = range
       and ys = range
       in
