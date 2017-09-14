@@ -123,6 +123,21 @@ module Board = struct
         else Result.Bad square
       | _ -> Result.Bad square
 
+  let setup
+    : t =
+    let open BatResult.Infix in
+    let empty_board = Result.Ok empty
+    and starting_positions =
+      [ Pc.Black, (6,9) ; Pc.Black, (9,6) ; Pc.Black, (6,0) ; Pc.Black, (9,3)
+      ; Pc.White, (0,6) ; Pc.White, (3,9) ; Pc.White, (0,3) ; Pc.White, (3,0) ]
+    in
+    let place boardM (color, coord) =
+      boardM >>= fun board -> place coord Piece.(make color Amazon) board
+    in
+    List.fold_left place empty_board starting_positions
+    |> BatResult.default empty (* Return a setup board or an empty board*)
+      (* An empty board should be possible. *)
+
   let line_of_squares
     : coord -> coord -> t -> Sq.t list option
     = fun a b board ->
@@ -239,3 +254,5 @@ module Turn = struct
 end
 
 type t = Turn.t list
+
+let start : t = [Turn.first]
