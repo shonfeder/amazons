@@ -6,15 +6,37 @@
     border-collapse: collapse;
 }
 
+.coord {
+    display: none
+}
+
 .square {
     width : 50px;
     height: 50px;
+    border: black solid 2px;
 }
 
 .square.white {
-    background-color: #ffffff;
+    background-color: #eeeeee;
 }
 
 .square.black {
-    background-color: #aaaaaa;
+    background-color: #999999;
+}
+
+.piece {
+	  border: black solid 2px;
+	  width: 50%;
+	  height: 80%;
+	  border-top-left-radius: 10px;
+	  border-top-right-radius: 10px;
+	  margin: auto;
+}
+
+.piece.white {
+    background-color: #ffffff;
+}
+
+.piece.black {
+    background-color: #666666;
 }
