@@ -4,13 +4,22 @@ let default_css = [["css"; "amazons.css"]]
 let current_service = Eliom_service.reload_action
 
 module State = struct
-  type game_id = int
 
-  let next_game_number : game_id ref
-    = ref 0
+  type game_id = int
+  let game_number : game_id ref = ref 0
   let games : (game_id * Game.t) list ref
   (* XXX *)
     = ref [(0, Game.start)]
+
+  (** [new_game] increments the [game_number] counter, starts a new
+      game associated with the new [game_number] in [games], and
+      returns the new [game_number]. *)
+  let new_game
+    : unit   -> game_id
+    = fun () -> ( game_number := !game_number + 1
+                ; games := (!game_number, Game.start) :: !games
+                ; !game_number)
+
 end
 
 module Amazons = struct
@@ -62,7 +71,6 @@ module Make = struct
         ~css:style
         (body param ())
 
-
   let service ~path ~meth =
     Eliom_service.(create ~path:(Path path) ~meth ())
 end
@@ -74,17 +82,24 @@ module Service = struct
       ~path:[""]
       ~meth:(Get Param.unit)
 
-  let new_game = Make.service
-      ~path:["games"; "new"]
+  let games = Make.service
+      ~path:["games"; ""]
       ~meth:(Get Param.unit)
 
   let game = Make.service
       ~path:["games"; ""]
       ~meth:(Get Param.(suffix @@ int "game_id"))
 
-  let games = Make.service
-      ~path:["games"; ""]
+  let new_game = let open Eliom_service in
+    Eliom_registration.Redirection.create
+      ~options:`TemporaryRedirect
+      ~path:(Path ["games"; "new"])
       ~meth:(Get Param.unit)
+      (fun () () ->
+         let game_id = State.new_game () in
+         Lwt.return @@
+         Eliom_registration.Redirection
+           (preapply game game_id))
 end
 
 module Content = struct
@@ -97,8 +112,9 @@ module Content = struct
        TODO Remove current, since it is the default *)
     let menu =
       let items =
-        [ (Service.home,  [pcdata "Home"])
-        ; (Service.games, [pcdata "Games"]) ]
+        [ (Service.home,     [pcdata "Home"])
+        ; (Service.games,    [pcdata "Games"])
+        ; (Service.new_game, [pcdata "New Game"])]
       in
         Eliom_tools.D.menu
         ~classe:["main-menu"]
@@ -153,38 +169,11 @@ module Content = struct
       ; p  [pcdata "Interface to create a new game will be here"] ]
 end
 
-(* TODO Functorize?
-
-   module type EndPoint =
-     type t
-     val registrar : Eliom_registration.('get -> 'post -> page Lwt.t) -> unit
-     val service   : Eliom_service.t
-     val content   : Eliom_content.Html.elt
-   end
-
-   module Make (E:EndPoint) = struct
-     val end_point = E.registrar E.Service E.content
-   end
-
-   Then we can define each endpoint in its own module.
-
-   We can specify a list of these modules, and just iterate the functor over
-   them.
-
-   Is this actually better?
-*)
-
 let amazons_service =
   Register.html Service.home
     (Make.page
        ~title:"The Game of the Amazons"
        ~body:Content.home)
-
-let new_game_service =
-  Register.html Service.new_game
-    (Make.page
-       ~title:"A New Game of the Amazons"
-       ~body:Content.new_game)
 
 (* TODO If an existing game does not match id, give 404ish *)
 let game_service =
