@@ -6,10 +6,12 @@ let current_service = Eliom_service.reload_action
 module State = struct
 
   type game_id = int
-  let game_number : game_id ref = ref 0
-  let games : (game_id * Game.t) list ref
-  (* XXX *)
-    = ref [(0, Game.start)]
+  let game_number
+    : game_id ref
+    = ref 0
+  let games
+    : (game_id * Game.t) list ref
+    = ref []
 
   (** [new_game] increments the [game_number] counter, starts a new
       game associated with the new [game_number] in [games], and
@@ -53,9 +55,9 @@ module Make = struct
   end
 
   (* TODO Add attribute handling? *)
-  let link ?attr service text =
+  let link service text =
     let open Eliom_content.Html.D in
-    a ~service [pcdata text]
+    a ~service [pcdata text] ()
 
   let page ~title ?(style=default_css) ~body =
     fun () () -> Lwt.return @@
@@ -143,10 +145,24 @@ module Content = struct
            ]
       ]
 
-  let games =
+  (* TODO refactor this bit out into a "game room"jla
+     The game room will contain the context of play
+     and will also be run through the renderer.contents
+
+     It can take care of things like the interface for pairing players
+     and for the "tables" where play happens, etc. *)
+  let games games =
+    let game_item (game_id, _) =
+      let service = Eliom_service.preapply Service.game game_id
+      and text    = "Game " ^ (string_of_int game_id)
+      in
+      li [Make.link service text]
+    in
+    let game_items = List.map game_item games
+    in
     Page.body
       [ h2 [pcdata "Ongoing Games"]
-      ; p  [pcdata "A list of games should be here"] ]
+      ; ul game_items ]
 
   let game game_id =
     let lookup = BatList.Exceptionless.assoc in
@@ -184,6 +200,9 @@ let game_service =
 
 let games_service =
   Register.html Service.games
-    (Make.page
-       ~title:"Games of the Amazons"
-       ~body:Content.games)
+    (fun () () ->
+       let games = List.rev (!State.games) in
+       Lwt.return @@ Eliom_tools.F.html
+         ~title:"Games of the Amazons"
+         ~css:default_css
+         (Content.games games ()))
