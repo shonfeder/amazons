@@ -11,11 +11,6 @@ module Amazons = struct
   module App = Eliom_registration.App (Info)
 end
 
-module Register = struct
-  open Eliom_registration
-  let html = Html.register
-end
-
 (** Convenience functions to hide the complexity of Eliom stuff *)
 module Make = struct
 
@@ -180,13 +175,15 @@ module Content = struct
 end
 
 let amazons_service =
-  Register.html Service.home
+  Eliom_registration.Html.register
+    Service.home
     (Make.page
        ~title:"The Game of the Amazons"
        ~body:Content.home)
 
 let games_service =
-  Register.html Service.games
+  Eliom_registration.Html.register
+  Service.games
     (fun () () ->
        let games = List.rev (!State.games) in
        Lwt.return @@ Eliom_tools.F.html
