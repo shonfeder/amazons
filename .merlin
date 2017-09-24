@@ -9,7 +9,6 @@ PKG ocsigenserver
 PKG ocsigen-toolkit
 
 PKG ppx_deriving
-PKG eliom.ppx.server
 PKG eliom.ppx.client
 
 B _server
