@@ -88,9 +88,28 @@ module Service = struct
       ~path:["games"; ""]
       ~meth:(Get Param.unit)
 
-  let game = Make.service
-      ~path:["games"; ""]
+  let game =
+    Amazons.App.create
+      ~path:(Path ["games"; ""])
       ~meth:(Get Param.(suffix @@ int "game_id"))
+      @@ fun game_id () ->
+        let lookup = BatList.Exceptionless.assoc in
+        let open Eliom_content.Html.D in
+        let (page_title, content) =
+          match lookup game_id (!State.games) with
+          | None ->
+            ("Sorry!",
+             p [pcdata "This game doesn't exist"])
+          | Some game ->
+            ("Game of the amazons number " ^ string_of_int game_id,
+             Render.Html.game game)
+        in
+        Lwt.return
+          (html
+             (head (title (pcdata "Temp game page")) [])
+             (body
+                [ h2 [pcdata page_title]
+                ; content ]))
 
   let new_game = let open Eliom_service in
     Eliom_registration.Redirection.create
@@ -108,17 +127,13 @@ module Content = struct
   open Eliom_content.Html.D
 
   module Page = struct
-    (* TODO Correct documentation on basic menus
-       - correct this http://ocsigen.org/eliom/6.2/manual/misc#basic_menu
-       - with reference to this https://github.com/ocsigen/eliom/blob/master/src/lib/eliom_tools.eliom#L212
-       TODO Remove current, since it is the default *)
     let menu =
       let items =
         [ (Service.home,     [pcdata "Home"])
         ; (Service.games,    [pcdata "Games"])
         ; (Service.new_game, [pcdata "New Game"])]
       in
-        Eliom_tools.D.menu
+      Eliom_tools.D.menu
         ~classe:["main-menu"]
         items
         ~service:Eliom_service.reload_action
@@ -145,7 +160,7 @@ module Content = struct
            ]
       ]
 
-  (* TODO refactor this bit out into a "game room"jla
+  (* TODO refactor this bit out into a "game room"
      The game room will contain the context of play
      and will also be run through the renderer.contents
 
@@ -191,13 +206,6 @@ let amazons_service =
        ~title:"The Game of the Amazons"
        ~body:Content.home)
 
-(* TODO If an existing game does not match id, give 404ish *)
-let game_service =
-  Register.html Service.game
-    (Make.page_param
-       ~title:"An Ongoing Game of the Amazons"
-       ~body:Content.game)
-
 let games_service =
   Register.html Service.games
     (fun () () ->
@@ -206,3 +214,39 @@ let games_service =
          ~title:"Games of the Amazons"
          ~css:default_css
          (Content.games games ()))
+
+(******************)
+(* Example of redirecting to an application *)
+
+module Test = struct
+  module Info = struct
+    let application_name = "Test"
+    let global_data_path = None
+  end
+  module App = Eliom_registration.App (Info)
+end
+
+let test_service =
+  let open Eliom_service in
+  Test.App.create
+    ~path:(Path ["test"])
+    ~meth:(Get Eliom_parameter.(suffix (int "test_param")))
+    (fun test_param () ->
+       let open Eliom_content.Html.D in
+       Lwt.return
+         (html
+            (head (title (pcdata "Test")) [])
+            (body [ h1 [pcdata "Test"]
+                  ; p  [pcdata (string_of_int test_param)]]) ))
+
+let redirect_test =
+  let open Eliom_service in
+  Eliom_registration.Redirection.create
+    ~options:`TemporaryRedirect
+    ~path:(Path ["redirect"])
+    ~meth:(Get Param.unit)
+    @@ fun () () ->
+    let () = print_string "Test side effect" in
+    Lwt.return @@
+    Eliom_registration.Redirection
+      (preapply test_service 1)
