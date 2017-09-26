@@ -55,6 +55,8 @@
    - Add these to your ~.merlin~
    - Add them to the ~SERVER_PACKAGES~ and ~CLIENT_PACKAGES~ variables in the
      ~Makefile.options~ as needed.
+     - *Note*: The order of these files matters? :( You have to list them
+       so that modules come after the modules they depend on.
 ** How to add ~*.ml~ modules
    - Add these to your ~.merlin~
    - Add them to the ~SERVER_FILES~ and ~CLIENT_FILES~ variables in the
