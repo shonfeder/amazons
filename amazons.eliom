@@ -33,20 +33,6 @@ module Make = struct
     let open Eliom_content.Html.D in
     a ~service [pcdata text] ()
 
-  let page ~title ?(style=default_css) ~body menu_items =
-    fun () () -> Lwt.return @@
-      Eliom_tools.F.html
-        ~title:title
-        ~css:style
-        (body menu_items)
-
-  let page_param ~title ?(style=default_css) ~body menu_items=
-    fun param () -> Lwt.return @@
-      Eliom_tools.F.html
-        ~title:title
-        ~css:style
-        (body param menu_items)
-
   let service ~path ~meth =
     Eliom_service.(create ~path:(Path path) ~meth ())
 end
@@ -133,40 +119,28 @@ module Service = struct
     Make.service
       ~path:[""]
       ~meth:(Get Param.unit)
-  and home_service () =
+  and home_registration () =
     Eliom_registration.Html.register
       home
-      (Make.page
-         ~title:"The Game of the Amazons"
-         ~body:Content.home
-         (services_menu_items ()))
+      (fun () () ->
+         Lwt.return @@
+         Eliom_tools.F.html
+           ~title:"The Game of the Amazons"
+           ~css:default_css
+           (Content.home @@ services_menu_items ()))
 
-  and game () =
+  and game_app () =
     Amazons.App.create
       ~path:(Path ["games"; ""])
       ~meth:(Get Param.(suffix @@ int "game_id"))
-      @@ fun game_id () ->
-        let lookup = BatList.Exceptionless.assoc in
-        let open Eliom_content.Html.D in
-        let content =
-          match lookup game_id (!State.games) with
-          | None ->
-            [ h2 [pcdata "Sorry!"]
-            ; p  [pcdata "This game doesn't exist"] ]
-          | Some game ->
-            [ h2 [pcdata @@
-                  "Game of the amazons number " ^ string_of_int game_id]
-            ; Render.Html.game game ]
-        in
-        Lwt.return @@
-          Eliom_tools.D.html
-            ~title:"Temp game page"
-            ~css:default_css
-            (Content.Page.body
-               content
-               (services_menu_items ()))
+      (fun game_id () ->
+         Lwt.return @@
+         Eliom_tools.D.html
+           ~title:"A Game of the Amazons"
+           ~css:default_css
+           (Content.game game_id @@ services_menu_items ()))
 
-  and new_game () = let open Eliom_service in
+  and new_game_redirection () = let open Eliom_service in
     Eliom_registration.Redirection.create
       ~options:`TemporaryRedirect
       ~path:(Path ["games"; "new"])
@@ -175,13 +149,13 @@ module Service = struct
          let game_id = State.new_game () in
          Lwt.return @@
          Eliom_registration.Redirection
-           (preapply (game ()) game_id))
+           (preapply (game_app ()) game_id))
 
   and games  =
     Make.service
       ~path:["games"; ""]
       ~meth:(Get Param.unit)
-  and games_service () =
+  and games_registration () =
     Eliom_registration.Html.register
       games
       (fun () () ->
@@ -189,17 +163,17 @@ module Service = struct
          Lwt.return @@ Eliom_tools.F.html
            ~title:"Games of the Amazons"
            ~css:default_css
-           (Content.games (game ()) games (services_menu_items ())))
+           (Content.games (game_app ()) games (services_menu_items ())))
 
   and services_menu_items () =
     let open Eliom_content.Html.D in
-    [ (home,     [pcdata "Home"])
-    ; (games,    [pcdata "Games"])
-    ; (new_game (), [pcdata "New Game"])]
+    [ (home,                    [pcdata "Home"])
+    ; (games,                   [pcdata "Games"])
+    ; (new_game_redirection (), [pcdata "New Game"])]
 
   let register_services =
-    games_service () ;
-    home_service ()
+    games_registration () ;
+    home_registration ()
     (* new_game is registered in the menu *)
 
 end
