@@ -62,3 +62,13 @@
    - Add them to the ~SERVER_FILES~ and ~CLIENT_FILES~ variables in the
      ~Makefile.options~ as needed.
 
+* Trials and Tribulations
+** Resolving chicken and egg service problems with mutual recursion
+*** TODO Document how I was able to work around the  menu/services problem with mutually recursive thunks
+** Missing Primitives
+   Ongoing problem with pending issue: https://github.com/issues
+*** TODO Explain what causes this and how to solve it
+** Problems with client-side injection
+   See https://github.com/ocsigen/eliom/issues/506
+*** TODO Make an fresh isolated study of client-side code
+    Play with this to see exactly what is going on and figure out how to break it.
