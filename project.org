@@ -1,4 +1,5 @@
 * Tutorial
+  Notes for a tutorial on getting started with Ocsigen
 ** Getting Tuareg and Merlin working correctly
 
    Tooling-wise, the OCaml ecosystem is currently in an awkward state. The
@@ -72,3 +73,17 @@
    See https://github.com/ocsigen/eliom/issues/506
 *** TODO Make an fresh isolated study of client-side code
     Play with this to see exactly what is going on and figure out how to break it.
+* Gripes
+  Things that are frustrating and painful about working with ocsigen.
+** Out of date and incorrect documentation
+   This has been a pretty constant source of difficulty for me.
+** Baroque type signatures
+   Many things you would expect to be very simple and straight forward (judging
+   from other frameworks) are fiendishly difficult with OCsigen. Creating
+   external links is a simple example of this.
+
+   There are, however, two points to note on this front:
+   1. Ocsigen's complexity is really just exposing the complexity that other
+      frameworks hide, but it is also exposing power they don't offer.
+   2. There are special features and abilities enabled by this complexity:
+      statically verified HTML and linking, etc...?
