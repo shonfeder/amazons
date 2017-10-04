@@ -65,14 +65,29 @@
 
 * Trials and Tribulations
 ** Resolving chicken and egg service problems with mutual recursion
-*** TODO Document how I was able to work around the  menu/services problem with mutually recursive thunks
+*** TODO Document how I was able to work around the menu/services problem
+    Using mutually recursive thunks. See [[file:amazons.eliom::119][here.]]
 ** Missing Primitives
    Ongoing problem with pending issue: https://github.com/issues
-*** TODO Explain what causes this and how to solve it
-** Problems with client-side injection
-   See https://github.com/ocsigen/eliom/issues/506
-*** TODO Make an fresh isolated study of client-side code
-    Play with this to see exactly what is going on and figure out how to break it.
+*** This causes Problems with client-side injection
+    See https://github.com/ocsigen/eliom/issues/506 and, especially,
+    https://github.com/ocsigen/eliom/issues/100#issuecomment-44929242
+**** DONE Make a fresh isolated study of client-side code
+     CLOSED: [2017-10-01 Sun 22:55]
+     Play with this to see exactly what is going on and figure out how to break it.
+     See 
+*** DONE Explain what causes this and how to solve it
+    CLOSED: [2017-10-03 Tue 23:37]
+**** Caused by depending on external packages
+     In this case, batteries. By what specifically is going on?
+**** The fix
+     Add the necessary native packages as options to ~js_of_ocaml~ passing
+     them through ~js_of_eliom~ by changing the ~JS_OF_ELIOM~ variable in the
+     ~Makefile.options~ like so:
+
+     #+BEGIN_SRC makefile
+     JS_OF_ELIOM       := js_of_eliom -jsopt +nat.js -ppx
+     #+END_SRC
 * Gripes
   Things that are frustrating and painful about working with ocsigen.
 ** Out of date and incorrect documentation

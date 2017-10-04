@@ -14,7 +14,7 @@ include Makefile.options
 ## Required binaries
 ELIOMC            := eliomc -ppx
 ELIOMOPT          := eliomopt -ppx
-JS_OF_ELIOM       := js_of_eliom -ppx
+JS_OF_ELIOM       := js_of_eliom -jsopt +nat.js -ppx
 ELIOMDEP          := eliomdep
 OCSIGENSERVER     := ocsigenserver
 OCSIGENSERVER.OPT := ocsigenserver.opt
