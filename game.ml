@@ -240,14 +240,14 @@ module Turn = struct
 
   open Result.Infix
 
-  let move
-    : t -> coord -> coord -> (t, Square.t) Result.t
+  type action = t -> coord -> coord -> (t, Square.t) Result.t
+
+  let move : action
     = fun turn source target ->
       Board.move turn.color source target turn.board
       >>= fun board -> Result.Ok {turn with board}
 
-  let fire
-    : t -> coord -> coord -> (t, Square.t) Result.t
+  let fire : action
     = fun turn source target ->
       Board.fire turn.color source target turn.board
       >>= fun board -> Result.Ok (next turn board)
