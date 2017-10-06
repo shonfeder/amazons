@@ -92,6 +92,7 @@ module Html = struct
   let map = List.map
 
   type 'a t = 'a Html.elt
+  exception Rendering
 
   let piece
     : Pc.t -> [> T.div ] t
@@ -148,8 +149,8 @@ module Html = struct
         rows_of_cells
 
   let game
-    : Game.t -> [> T.table] t
-    = fun (t :: turns) ->
-      board Game.Turn.(t.board)
+    : Game.t -> [> T.table] t = function
+    | (t :: turns) -> board Game.Turn.(t.board)
+    | [] -> raise Rendering
 
 end
