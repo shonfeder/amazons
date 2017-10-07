@@ -59,20 +59,22 @@ module Content = struct
       div [ p [pcdata "Footer content here"] ]
 
     let body content menu_items =
-      Html.body ([header menu_items] @ content @ [footer])
+      Html.body
+        ~a:[Html.a_class ["container"]]
+        ([header menu_items] @ content @ [footer])
+
+    let default title content =
+      body [ Html.h2 [Html.pcdata title]
+           ; Html.div ~a:[Html.a_class ["content"]] content ]
   end
 
   let home menu_items =
-    let open Html in
-    Page.body
-      [ h2 [pcdata "Rules"]
-      ; p  [ Make.External.link
-               ~domain:"http://wikipedia.org"
-               ~path:["wiki"; "Game_of_the_Amazons"]
-               "The Game of the Amazons on Wikipedia"
-           ; br ()
-           ]
-      ]
+    Page.default "Rules"
+      Html.[ p  [ Make.External.link
+                    ~domain:"http://wikipedia.org"
+                    ~path:["wiki"; "Game_of_the_Amazons"]
+                    "The Game of the Amazons on Wikipedia"
+                ; br ()]]
       menu_items
 
   (* TODO refactor this bit out into a "game room"
@@ -82,35 +84,26 @@ module Content = struct
      It can take care of things like the interface for pairing players
      and for the "tables" where play happens, etc. *)
   let games game_service games =
-    let open Html in
     let game_item (game_id, _) =
       let service = Eliom_service.preapply game_service game_id
       and text    = "Game " ^ (string_of_int game_id)
       in
-      li [Make.link service text]
+      Html.li [Make.link service text]
     in
     let game_items = List.map game_item games in
-    Page.body
-      [ h2 [pcdata "Ongoing Games"]
-      ; ul game_items ]
+    Page.default "Ongoing Games"
+      [Html.ul game_items]
 
-  let game game_id =
-    let open Html in
-    let lookup = BatList.Exceptionless.assoc in
-    let (title, content) =
-      match lookup game_id (!State.games) with
-      | None ->
-        ("Sorry!",
-         p [pcdata "This game doesn't exist"])
-      | Some game ->
-        ("Game of the amazons number " ^ string_of_int game_id,
-         Render.Html.game game)
+  let game option_game =
+    let title, content =
+      match option_game with
+      | None      -> "Sorry!", Html.[p [pcdata "This game doesn't exist"]]
+      | Some game -> "A Game of the Amazons", [Render.Html.game game]
     in
-    Page.body
-      [ h2 [pcdata title]
-      ; content ]
+    Page.default title content
 
 end
+
 
 module Service = struct
   open Eliom_service
@@ -130,15 +123,17 @@ module Service = struct
            (Content.home @@ services_menu_items ()))
 
   and game_app () =
+    let lookup = BatList.Exceptionless.assoc in
     Amazons.App.create
       ~path:(Path ["games"; ""])
       ~meth:(Get Param.(suffix @@ int "game_id"))
       (fun game_id () ->
          Lwt.return @@
+         let option_game = lookup game_id (!State.games) in
          Eliom_tools.D.html
            ~title:"A Game of the Amazons"
            ~css:default_css
-           (Content.game game_id @@ services_menu_items ()))
+           (Content.game option_game @@ services_menu_items ()))
 
   and new_game_redirection () = let open Eliom_service in
     Eliom_registration.Redirection.create
