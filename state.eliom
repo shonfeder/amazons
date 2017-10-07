@@ -1,3 +1,5 @@
+[%%server.start]
+
 type game_id = int
 let game_number
   : game_id ref

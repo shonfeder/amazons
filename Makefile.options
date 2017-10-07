@@ -6,9 +6,9 @@
 PROJECT_NAME := amazons
 
 # Source files for the server
-SERVER_FILES := $(wildcard *.eliomi *.eliom) state.ml game.ml aux.ml
+SERVER_FILES := $(wildcard *.eliomi *.eliom) aux.ml
 # Source files for the client
-CLIENT_FILES := $(wildcard *.eliomi *.eliom) state.ml game.ml aux.ml
+CLIENT_FILES := $(wildcard *.eliomi *.eliom) aux.ml
 
 # OCamlfind packages for the server
 SERVER_PACKAGES := lwt.ppx js_of_ocaml.deriving.ppx batteries

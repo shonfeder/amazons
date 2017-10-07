@@ -1,3 +1,5 @@
+[%%shared.start]
+
 module List' = struct
   include BatList
   include BatList.Exceptionless
@@ -136,7 +138,7 @@ module Board = struct
     in
     List.fold_left place empty_board starting_positions
     |> BatResult.default empty (* Return a setup board or an empty board*)
-      (* An empty board should be possible. *)
+  (* An empty board should be possible. *)
 
   let line_of_squares
     : coord -> coord -> t -> Sq.t list option
