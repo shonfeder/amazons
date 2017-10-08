@@ -112,16 +112,21 @@ module Html = struct
   let square
     : Sq.t -> [> T.td ] t
     = fun sq ->
+      let coordstr = Text.coord @@ Sq.coord sq in (* XXX *)
       let coord   = coord @@ Sq.coord sq
       in
       let id      = ID.square sq
       and classes = Classes.square sq
+      (* TODO Event handler should feed data into client side functions *)
+      and onclick = Html.a_onclick [%client
+        fun _ -> Dom_html.window##alert(Js.string ("Square " ^ ~%coordstr))
+        ]
       and content = match Sq.(sq.piece) with
         | None    -> [coord]
         | Some pc -> [coord; piece pc]
       in
       Html.td
-        ~a:[id; classes]
+        ~a:[onclick; id; classes]
         content
 
   let row
