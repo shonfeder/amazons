@@ -123,13 +123,23 @@ module Service = struct
            (Content.home @@ services_menu_items ()))
 
   and game_app () =
-    let lookup = BatList.Exceptionless.assoc in
     Amazons.App.create
       ~path:(Path ["games"; ""])
       ~meth:(Get Param.(suffix @@ int "game_id"))
       (fun game_id () ->
          Lwt.return @@
-         let option_game = lookup game_id (!State.games) in
+         let option_game = State.game game_id in
+         let () =
+           match option_game with
+           | None      -> ()
+           | Some game ->
+             let turns =  List.length game in
+             let message = Printf.sprintf "Currently on turn %i" turns in
+             ignore [%client(
+               Dom_html.window##alert (Js.string ~%message)
+               : unit
+             )]
+         in
          Eliom_tools.D.html
            ~title:"A Game of the Amazons"
            ~css:default_css

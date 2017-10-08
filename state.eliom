@@ -1,5 +1,7 @@
 [%%server.start]
 
+let lookup = BatList.Exceptionless.assoc
+
 type game_id = int
 let game_number
   : game_id ref
@@ -16,3 +18,8 @@ let new_game
   = fun () -> ( game_number := !game_number + 1
               ; games := (!game_number, Game.start) :: !games
               ; !game_number)
+
+(* TODO Implement using
+   https://ocsigen.org/eliom/6.2/api/server/Eliom_cscache *)
+let game id =
+  lookup id (!games)
