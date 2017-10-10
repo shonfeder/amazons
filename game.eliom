@@ -9,18 +9,21 @@ module Result = BatResult
 
 let (%) = Batteries.(%)
 
-type coord = (int * int)
+type coord = (int * int) [@@deriving json]
 
 module Piece = struct
   type kind =
     | Amazon
     | Arrow
+  [@@deriving json]
   type color =
     | Black
     | White
+  [@@deriving json]
   type t =
     { color : color
     ; kind  : kind}
+  [@@deriving json]
 
   let is_color : color -> t -> bool
     = fun color' {color} -> color = color'
@@ -56,6 +59,7 @@ module Square = struct
   type t =
     { coord : coord
     ; piece : Piece.t option}
+  [@@deriving json]
 
   let make : coord -> Piece.t -> t
     = fun coord piece -> {coord; piece = Some piece}
@@ -79,8 +83,8 @@ module Board = struct
   module Sq = Square
   module Pc = Piece
 
-  type coord = int * int
-  type t = Sq.t list
+  type coord = int * int [@@deriving json]
+  type t = Sq.t list [@@deriving json]
 
   let empty : t =
     let coord_values = (Aux.range 0 9) in
@@ -224,10 +228,12 @@ module Turn = struct
   type t =
     { color : Piece.color
     ; board : Board.t }
+  [@@deriving json]
 
   let first : t =
     { color = Piece.White
     ; board = Board.setup }
+  [@@deriving json]
 
   let switch
     : Piece.color -> Piece.color = function
