@@ -1,3 +1,4 @@
+* Notes
 * Tutorial
   Notes for a tutorial on getting started with Ocsigen
 ** Getting Tuareg and Merlin working correctly
@@ -62,6 +63,13 @@
    - Add these to your ~.merlin~
    - Add them to the ~SERVER_FILES~ and ~CLIENT_FILES~ variables in the
      ~Makefile.options~ as needed.
+** Simple intro to reactive client-server programming
+   - This tutorial has too much other stuff going on :: https://ocsigen.org/tuto/6.1/manual/tutoreact
+   - This section of manual only covers client side :: https://ocsigen.org/eliom/5.0/manual/clientserver-html#reactive
+   - This one has too little going on :: https://ocsigen.org/eliom/5.0/manual/clientserver-react
+*** TODO Make a simple tic-tac-toe app following tutorial
+    Creating this in a separate repo: [[https://github.com/shonfeder/reactive_tic_tack_toe][reactive_tick_tack_toe]]
+*** TODO document and publish tutorial on the process
 
 * Trials and Tribulations
 ** Resolving chicken and egg service problems with mutual recursion
@@ -75,7 +83,7 @@
 **** DONE Make a fresh isolated study of client-side code
      CLOSED: [2017-10-01 Sun 22:55]
      Play with this to see exactly what is going on and figure out how to break it.
-     See 
+     See
 *** DONE Explain what causes this and how to solve it
     CLOSED: [2017-10-03 Tue 23:37]
 **** Caused by depending on external packages
