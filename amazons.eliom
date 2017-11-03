@@ -42,7 +42,8 @@ module Content = struct
 
   module Page = struct
 
-    let site_menu items : unit -> [> `Ul ] Eliom_content.Html.elt =
+    let site_menu items
+      : unit -> [> `Ul ] Eliom_content.Html.elt =
       Eliom_tools.D.menu
         ~classe:["main-menu"]
         items
@@ -129,17 +130,6 @@ module Service = struct
       (fun game_id () ->
          Lwt.return @@
          let option_game = State.game game_id in
-         let () =
-           match option_game with
-           | None      -> ()
-           | Some game ->
-             let turns =  List.length game in
-             let message = Printf.sprintf "Currently on turn %i" turns in
-             ignore [%client(
-               Dom_html.window##alert (Js.string ~%message)
-               : unit
-             )]
-         in
          Eliom_tools.D.html
            ~title:"A Game of the Amazons"
            ~css:default_css
