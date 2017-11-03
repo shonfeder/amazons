@@ -9,7 +9,23 @@ module Result = BatResult
 
 let (%) = Batteries.(%)
 
-type coord = (int * int) [@@deriving json]
+type coord = (int * int)
+[@@deriving show, json]
+
+exception Read_coord
+let read_coord
+  : string -> coord
+  = fun str ->
+  let parens_stripped = String.sub str 1 (String.length str - 2) in
+  let (a, b) =
+    match String.split_on_char ',' parens_stripped with
+    | [a; b] -> (a, b)
+    | _      -> raise Read_coord
+  in
+  try
+    (int_of_string a, int_of_string b)
+  with
+  | Failure _ -> raise Read_coord
 
 module Piece = struct
   type kind =

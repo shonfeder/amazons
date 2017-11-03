@@ -15,8 +15,16 @@ module List = struct
 end
 
 module Text = struct
-  let coord (x, y) = Printf.sprintf "%n-%n" x y
+  module To = struct
+    let coord = Game.read_coord
+  end
+  module Of = struct
+    let coord = Game.show_coord
+  end
 end
+
+let%client alert_sq coordstr =
+  Dom_html.window##alert(Js.string ("Square " ^ coordstr))
 
 module Classes = struct
 
@@ -82,7 +90,7 @@ module ID = struct
 
   let square
     : Sq.t -> 'a t
-    = id % Text.coord % Sq.coord
+    = id % Text.Of.coord % Sq.coord
 end
 
 module Html = struct
@@ -107,19 +115,21 @@ module Html = struct
       let open Html in
       div
         ~a:[Classes.coord coord]
-        [p [pcdata (Text.coord coord)]]
+        [p [pcdata (Text.Of.coord coord)]]
 
   let square
     : Sq.t -> [> T.td ] t
     = fun sq ->
-      let coordstr = Text.coord @@ Sq.coord sq in (* XXX *)
-      let coord   = coord @@ Sq.coord sq
+      let sq_coord = Sq.coord sq in
+      let coordstr = Text.Of.coord sq_coord in (* XXX *)
+      let coord   = coord @@ sq_coord
       in
       let id      = ID.square sq
       and classes = Classes.square sq
-      (* TODO Event handler should feed data into client side functions *)
+      (* TODO Event handler should update react signal *)
       and onclick = Html.a_onclick [%client
-        fun _ -> Dom_html.window##alert(Js.string ("Square " ^ ~%coordstr))
+        fun _ -> alert_sq ~%coordstr
+          (* Dom_html.window##alert(Js.string ("Square " ^ ~%coordstr)) *)
         ]
       and content = match Sq.(sq.piece) with
         | None    -> [coord]
