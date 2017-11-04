@@ -278,5 +278,38 @@ module Turn = struct
 end
 
 type t = Turn.t list
+[@@deriving json]
 
-let start : t = [Turn.first]
+module Update = struct
+
+  exception Update_invalid
+
+  type state = { game   : t
+               ; source : coord
+               ; target : coord }
+
+  type msg =
+    | Start
+    | Fire of state
+    | Move of state
+
+  type result = (t, Square.t) Result.t
+
+  let start : t = [Turn.first]
+
+  let send
+    : msg -> result =
+    let take action {game; source; target} =
+      match game with
+      | [] -> raise Update_invalid
+      | (turn :: _) as turns ->
+        let open Result.Infix in
+        action turn source target
+        >>= fun turn' -> Result.Ok (turn' :: turns)
+    in
+    function
+    | Start      -> Result.Ok start
+    | Move state -> take Turn.move state
+    | Fire state -> take Turn.fire state
+
+end

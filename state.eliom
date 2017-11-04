@@ -16,7 +16,7 @@ let games
 let new_game
   : unit   -> game_id
   = fun () -> ( game_number := !game_number + 1
-              ; games := (!game_number, Game.start) :: !games
+              ; games := (!game_number, Game.Update.start) :: !games
               ; !game_number)
 
 (* TODO Implement using
