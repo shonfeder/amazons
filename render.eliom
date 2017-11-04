@@ -1,8 +1,8 @@
+open Aux.Infix
+
 module Board = Game.Board
 module Pc    = Game.Piece
 module Sq    = Game.Square
-
-let (%) = Batteries.(%)
 
 module Is = struct
   let even n = (n mod 2 = 0)
@@ -22,6 +22,8 @@ module Text = struct
     let coord = Game.show_coord
   end
 end
+
+let signal, set = Eliom_shared.React.S.create Game.Update.start
 
 let%client alert_sq coordstr =
   Dom_html.window##alert(Js.string ("Square " ^ coordstr))

@@ -1,13 +1,8 @@
 [%%shared.start]
 
-module List' = struct
-  include BatList
-  include BatList.Exceptionless
-end
+open Aux.Infix
 
-module Result = BatResult
-
-let (%) = Batteries.(%)
+module Result = CCResult
 
 type coord = (int * int)
 [@@deriving show, json]
@@ -120,10 +115,10 @@ module Board = struct
     : coord -> t -> (Sq.t * t)
     = fun coord board ->
       let square = square board coord  in
-      (square, List'.remove board square)
+      (square, CCList.remove square board)
 
   (** [place coord piece board] is the [Result.Ok board'] of placing [piece] on
-      the empty position on [board] designated by [coord], or the [Result.Bad
+      the empty position on [board] designated by [coord], or the [Result.Error
       piece'] of the [piece'] already occupying the position designated by
       [coord] on [board]. *)
 
@@ -132,7 +127,7 @@ module Board = struct
     = fun coord piece board ->
       match select_square coord board with
       | Sq.{piece=None}, board' -> Result.Ok (Sq.make coord piece :: board')
-      | square, _               -> Result.Bad square
+      | square, _               -> Result.Error square
 
   let remove
     : coord -> t -> (Pc.t * t, Sq.t) Result.t
@@ -142,12 +137,12 @@ module Board = struct
       | Sq.{piece=Some piece} ->
         if Piece.is_amazon piece
         then Result.Ok  (piece, board')
-        else Result.Bad square
-      | _ -> Result.Bad square
+        else Result.Error square
+      | _ -> Result.Error square
 
   let setup
     : t =
-    let open BatResult.Infix in
+    let open CCResult.Infix in
     let empty_board = Result.Ok empty
     and starting_positions =
       [ Pc.Black, (6,9) ; Pc.Black, (9,6) ; Pc.Black, (6,0) ; Pc.Black, (9,3)
@@ -157,8 +152,8 @@ module Board = struct
       boardM >>= fun board -> place coord Piece.(make color Amazon) board
     in
     List.fold_left place empty_board starting_positions
-    |> BatResult.default empty (* Return a setup board or an empty board*)
-  (* An empty board should be possible. *)
+    |> CCResult.get_or ~default:empty (* Return a setup board or an empty board*)
+  (* An empty board should be possible. ?? *)
 
   let line_of_squares
     : coord -> coord -> t -> Sq.t list option
@@ -179,7 +174,7 @@ module Board = struct
         else if same_length xs ys then Some (xs, ys)
         else None
       in
-      let open BatOption.Infix in
+      let open CCOpt.Infix in
       sequence_option
       >>= fun (xs, ys) -> Some (List.combine xs ys)
       >>= fun coords   -> Some (List.map (square board) coords)
@@ -187,10 +182,10 @@ module Board = struct
   let path_between
     : coord -> coord -> t -> Sq.t list option
     = fun source target board ->
-      let open BatOption.Infix in
+      let open CCOpt.Infix in
       line_of_squares source target board
-      >>= List'.tl
-      >>= fun tail -> Some (BatList.take (List.length tail - 1) tail)
+      >>= fun sqs -> if CCList.is_empty sqs then None else Some (List.tl sqs)
+      >>= fun tail -> Some (CCList.take (List.length tail - 1) tail)
 
   let all_squares_are_empty : Sq.t list -> bool
     = List.for_all Sq.is_empty
@@ -199,15 +194,15 @@ module Board = struct
       are empty or else [Return.Bad square] where square is the first non-empty
       square encountered *)
   let only_empty_squares : Sq.t list -> (Sq.t list, Sq.t) Result.t
-    = fun squares -> match List'.find (Sq.is_empty) squares with
-      | Some square -> Result.Bad square
+    = fun squares -> match CCList.find_pred Sq.is_empty squares with
+      | Some square -> Result.Error square
       | None        -> Result.Ok squares
 
   let path_from_valid_piece
     : Pc.color -> coord -> coord -> t -> (Sq.t list, Sq.t) Result.t
     = fun color source target board ->
       let source_sq = square board source in
-      let open BatOption.Infix in
+      let open CCOpt.Infix in
       let valid_path =
         Sq.piece source_sq                                  (* Source Square is non-empty, *)
         >>= Aux.option_of_condition (Pc.is_color color)     (* is the appropriate color, *)
@@ -216,7 +211,7 @@ module Board = struct
       in
       match valid_path with
       | Some path -> Result.Ok path
-      | None      -> Result.Bad source_sq
+      | None      -> Result.Error source_sq
 
   let clear_path_from_valid_piece
     : Pc.color -> coord -> coord -> t -> (Sq.t list, Sq.t) Result.t

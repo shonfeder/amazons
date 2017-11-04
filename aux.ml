@@ -1,3 +1,4 @@
+
 let assoc_select : 'a -> ('a * 'b) list -> 'b * ('a * 'b) list
   = fun a assoc ->
     let b = List.assoc a assoc in
@@ -23,3 +24,7 @@ let option_of_condition : ('a -> bool) -> 'a -> 'a option
 let condition_on_option : ('a -> bool) -> 'a option -> bool
   = fun p -> function | None   -> false
                       | Some x -> p x
+
+module Infix = struct
+  let (%) f g = CCFun.(flip compose) f g
+end

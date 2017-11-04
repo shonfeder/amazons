@@ -1,6 +1,6 @@
 [%%server.start]
 
-let lookup = BatList.Exceptionless.assoc
+let lookup = CCList.Assoc.get
 
 type game_id = int
 let game_number
