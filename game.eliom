@@ -94,8 +94,31 @@ module Board = struct
   module Sq = Square
   module Pc = Piece
 
-  type coord = int * int [@@deriving json]
-  type t = Sq.t list [@@deriving json]
+  type coord =
+    int * int
+  [@@deriving json]
+
+  type t =
+    Sq.t list
+  [@@deriving json]
+
+  type illegal_move =
+    | Blocked       of Sq.t
+    | Empty         of Sq.t
+    | Occupied      of Sq.t
+    | Invalid_move  of Sq.t * Sq.t
+    | Invalid_piece of Sq.t
+    | Wrong_color   of Sq.t
+  [@@deriving json]
+
+  type bad_move =
+    { board  : t
+    ; reason : illegal_move }
+  [@@deriving json]
+
+  type result_of_move =
+    (t, bad_move) Result.t
+  (* [@@deriving json] *)
 
   let empty : t =
     let coord_values = (Aux.range 0 9) in
@@ -119,29 +142,33 @@ module Board = struct
 
   (** [place coord piece board] is the [Result.Ok board'] of placing [piece] on
       the empty position on [board] designated by [coord], or the [Result.Error
-      piece'] of the [piece'] already occupying the position designated by
-      [coord] on [board]. *)
+      (sq:Sq.t)] of the designed [sq:Sq.t] which is already occupied by a
+      piece *)
 
   let place
-    : coord -> Pc.t -> t -> (t, Sq.t) Result.t
+    : coord -> Pc.t -> t -> result_of_move
     = fun coord piece board ->
       match select_square coord board with
       | Sq.{piece=None}, board' -> Result.Ok (Sq.make coord piece :: board')
-      | square, _               -> Result.Error square
+      | square, _               -> Result.Error {reason = Occupied square; board}
+
+  (** [remove coord board] is the [Result.Ok (pc:Pc.t, board')] of removing
+      [piece] from the [sq:Sq.t] on the [board] designated by [coord], or the
+      [Result.Error (sq:Sq.t)] of the designated [sq:Sq.t] which is empty or
+      ocuppied by an (imovable) [Pc.Arrow] *)
 
   let remove
-    : coord -> t -> (Pc.t * t, Sq.t) Result.t
+    : coord -> t -> (Pc.t * t, bad_move) Result.t
     = fun coord board ->
       let (square, board') = select_square coord board in
-      match square with
-      | Sq.{piece=Some piece} ->
+      match Sq.piece square with
+      | Some piece ->
         if Piece.is_amazon piece
-        then Result.Ok  (piece, board')
-        else Result.Error square
-      | _ -> Result.Error square
+        then Result.Ok (piece, board')
+        else Result.Error {reason = Invalid_piece square; board}
+      | None -> Result.Error {reason = Empty square; board}
 
-  let setup
-    : t =
+  let setup : t =
     let open CCResult.Infix in
     let empty_board = Result.Ok empty
     and starting_positions =
@@ -152,7 +179,7 @@ module Board = struct
       boardM >>= fun board -> place coord Piece.(make color Amazon) board
     in
     List.fold_left place empty_board starting_positions
-    |> CCResult.get_or ~default:empty (* Return a setup board or an empty board*)
+    |> CCResult.get_or ~default:empty (* Return a set up board or an empty board*)
   (* An empty board should be possible. ?? *)
 
   let line_of_squares
@@ -190,43 +217,59 @@ module Board = struct
   let all_squares_are_empty : Sq.t list -> bool
     = List.for_all Sq.is_empty
 
-  (** [only_empty_squares squares] will [Return.Ok squares] if all the squares
-      are empty or else [Return.Bad square] where square is the first non-empty
-      square encountered *)
-  let only_empty_squares : Sq.t list -> (Sq.t list, Sq.t) Result.t
+  (** [only_empty_squares squares] is [Result.Ok squares] if all the squares are
+      empty or else [Result.Error illegal_move] indicating the first in the list
+      and the first non-empty square *)
+  let only_empty_squares
+    : Sq.t list -> (Sq.t list, bad_move) Result.t
     = fun squares -> match CCList.find_pred Sq.is_empty squares with
-      | Some square -> Result.Error square
-      | None        -> Result.Ok squares
+      | None ->
+        Result.Ok squares
+      | Some occupied_sq ->
+        Result.Error { reason = Blocked occupied_sq
+                     ; board  = squares }
+  (* [squares] is not actually a board here, but it'll do... *)
 
   let path_from_valid_piece
-    : Pc.color -> coord -> coord -> t -> (Sq.t list, Sq.t) Result.t
-    = fun color source target board ->
-      let source_sq = square board source in
-      let open CCOpt.Infix in
+    : Pc.color -> coord -> coord -> t -> (Sq.t list, bad_move) Result.t
+    = fun color source_coord target_coord board ->
+      let source   = square board source_coord
+      and target   = square board target_coord
+      and path_opt = path_between source_coord target_coord board
+      in
       let valid_path =
-        Sq.piece source_sq                                  (* Source Square is non-empty, *)
-        >>= Aux.option_of_condition (Pc.is_color color)     (* is the appropriate color, *)
-        >>= Aux.option_of_condition Pc.is_amazon            (* and has an amazon, *)
-        >>= fun _amazon -> path_between source target board (* also a valid path exists. *)
+        match Sq.piece source with
+        | None -> Result.Error (Empty source)
+        | Some pc ->
+          if
+            not (Pc.is_color color pc) then Result.Error (Wrong_color   source)
+          else if
+            not (Pc.is_amazon pc)      then Result.Error (Invalid_piece source)
+          else
+            match path_opt with
+            | None      -> Result.Error (Invalid_move (source, target))
+            | Some path -> Result.Ok path
       in
       match valid_path with
-      | Some path -> Result.Ok path
-      | None      -> Result.Error source_sq
+      | Result.Error reason -> Result.Error {board; reason}
+      | Result.Ok path      -> Result.Ok path
 
   let clear_path_from_valid_piece
-    : Pc.color -> coord -> coord -> t -> (Sq.t list, Sq.t) Result.t
+    : Pc.color -> coord -> coord -> t -> (Sq.t list, bad_move) Result.t
     = fun color source target board ->
       let open Result.Infix in
       path_from_valid_piece color source target board
       >>= only_empty_squares
 
-  let fire : Pc.color -> coord -> coord -> t -> (t, Sq.t) Result.t
+  let fire
+    : Pc.color -> coord -> coord -> t -> result_of_move
     = fun color source target board ->
       let open Result.Infix in
       clear_path_from_valid_piece color source target board
       >>= fun _ -> place target Pc.(make color Arrow) board
 
-  let move : Pc.color -> coord -> coord -> t -> (t, Sq.t) Result.t
+  let move
+    : Pc.color -> coord -> coord -> t -> result_of_move
     = fun color source target board ->
       let open Result.Infix in
       clear_path_from_valid_piece color source target board
@@ -259,7 +302,7 @@ module Turn = struct
 
   open Result.Infix
 
-  type action = t -> coord -> coord -> (t, Square.t) Result.t
+  type action = t -> coord -> coord -> (t, Board.bad_move) Result.t
 
   let move : action
     = fun turn source target ->
@@ -288,7 +331,7 @@ module Update = struct
     | Fire of state
     | Move of state
 
-  type result = (t, Square.t) Result.t
+  type result = (t, Board.bad_move) Result.t
 
   let start : t = [Turn.first]
 
