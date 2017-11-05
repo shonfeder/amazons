@@ -1,3 +1,12 @@
+
+let%server (signal : Game.t Eliom_shared.React.S.t), set
+  = Eliom_shared.React.S.create Game.Update.start
+
+
+let%client alert_sq coordstr =
+  Dom_html.window##alert(Js.string ("Square " ^ coordstr))
+
+[%%shared
 open Aux.Infix
 
 module Board = Game.Board
@@ -9,11 +18,6 @@ module Is = struct
   let odd  n = not (even n)
 end
 
-module List = struct
-  include List
-  let singleton x = [x]
-end
-
 module Text = struct
   module To = struct
     let coord = Game.read_coord
@@ -23,10 +27,6 @@ module Text = struct
   end
 end
 
-let signal, set = Eliom_shared.React.S.create Game.Update.start
-
-let%client alert_sq coordstr =
-  Dom_html.window##alert(Js.string ("Square " ^ coordstr))
 
 module Classes = struct
 
@@ -97,7 +97,8 @@ end
 
 module Html = struct
   module Html = Eliom_content.Html.D
-  module T    = Html_types
+  (* XXX For some reason Html_types are unavailable in shared code? *)
+  (* module T    = Html_types *)
 
   let map = List.map
 
@@ -105,14 +106,14 @@ module Html = struct
   exception Rendering
 
   let piece
-    : Pc.t -> [> T.div ] t
+    (* : Pc.t -> [> T.div ] t *)
     = fun pc ->
       Html.div
         ~a:[Classes.piece pc]
         []
 
   let coord
-    : (int * int) -> [> T.div ] t
+    (* : (int * int) -> [> T.div ] t *)
     = fun coord ->
       let open Html in
       div
@@ -120,7 +121,7 @@ module Html = struct
         [p [pcdata (Text.Of.coord coord)]]
 
   let square
-    : Sq.t -> [> T.td ] t
+    (* : Sq.t -> [> T.td ] t *)
     = fun sq ->
       let sq_coord = Sq.coord sq in
       let coordstr = Text.Of.coord sq_coord in (* XXX *)
@@ -142,13 +143,13 @@ module Html = struct
         content
 
   let row
-    : Sq.t list -> [> T.tr ] t
+    (* : Sq.t list -> [> T.tr ] t *)
     = fun (sqs:Sq.t list) ->
       let cells = map square sqs in
       Html.tr cells
 
   let board
-    : Board.t -> [> T.table] t
+    (* : Board.t -> [> T.table] t *)
     = fun board ->
       let classes = Classes.board board in
       let range   = Aux.range 0 9 in
@@ -166,8 +167,16 @@ module Html = struct
         rows_of_cells
 
   let game
-    : Game.t -> [> T.table] t = function
+    (* : Game.t -> [> T.table] t *)
+    = function
     | (t :: turns) -> board Game.Turn.(t.board)
     | [] -> raise Rendering
 
 end
+]
+
+let content_signal
+  : Html_types.div_content_fun Eliom_content.Html.elt Eliom_shared.React.S.t
+  = Eliom_shared.React.S.map [%shared Html.game] signal
+
+let reactive_game_node () = Eliom_content.Html.R.node content_signal

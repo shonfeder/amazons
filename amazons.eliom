@@ -99,7 +99,7 @@ module Content = struct
     let title, content =
       match option_game with
       | None      -> "Sorry!", Html.[p [pcdata "This game doesn't exist"]]
-      | Some game -> "A Game of the Amazons", [Render.Html.game game]
+      | Some game -> "A Game of the Amazons", [Render.reactive_game_node ()]
     in
     Page.default title content
 
