@@ -1,4 +1,10 @@
 * Notes
+  I initially started this in OCsigen and Eliom, but found it all just too
+  cumbersome and mysterious. So I've scratched that.
+* Tasks
+** TODO Makefile to build front and back ends
+   - Execute bucklscript build :: =npm run build=
+   - Execute jbuilder build :: =jbduiler build=
 * Tutorial
   Notes for a tutorial on getting started with Ocsigen
 ** Getting Tuareg and Merlin working correctly

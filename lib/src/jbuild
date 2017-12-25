@@ -1,0 +1,9 @@
+(jbuild_version 1)
+
+(library
+ ((name      game)
+  (public_name game)
+  (synopsis  "core logic for amazon game")
+  (libraries (core))
+  (preprocess (pps (ppx_deriving.std)))))
+

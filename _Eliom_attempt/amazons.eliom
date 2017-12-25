@@ -19,11 +19,11 @@ module Make = struct
       let open Eliom_content.Html.D in
       a
         Eliom_service.(
-        extern
-          ~prefix:domain
-          ~path:path
-          ~meth:(Get Eliom_parameter.unit)
-          ())
+          extern
+            ~prefix:domain
+            ~path:path
+            ~meth:(Get Eliom_parameter.unit)
+            ())
         [pcdata text]
         ()
   end

@@ -117,7 +117,7 @@ module Board = struct
   [@@deriving json]
 
   type result_of_move =
-    (t, bad_move) Result.t
+    (t, bad_move) result
   (* [@@deriving json] *)
 
   let empty : t =
@@ -158,7 +158,7 @@ module Board = struct
       ocuppied by an (imovable) [Pc.Arrow] *)
 
   let remove
-    : coord -> t -> (Pc.t * t, bad_move) Result.t
+    : coord -> t -> (Pc.t * t, bad_move) result
     = fun coord board ->
       let (square, board') = select_square coord board in
       match Sq.piece square with
@@ -221,7 +221,7 @@ module Board = struct
       empty or else [Result.Error illegal_move] indicating the first in the list
       and the first non-empty square *)
   let only_empty_squares
-    : Sq.t list -> (Sq.t list, bad_move) Result.t
+    : Sq.t list -> (Sq.t list, bad_move) result
     = fun squares -> match CCList.find_pred Sq.is_empty squares with
       | None ->
         Result.Ok squares
@@ -231,7 +231,7 @@ module Board = struct
   (* [squares] is not actually a board here, but it'll do... *)
 
   let path_from_valid_piece
-    : Pc.color -> coord -> coord -> t -> (Sq.t list, bad_move) Result.t
+    : Pc.color -> coord -> coord -> t -> (Sq.t list, bad_move) result
     = fun color source_coord target_coord board ->
       let source   = square board source_coord
       and target   = square board target_coord
@@ -255,7 +255,7 @@ module Board = struct
       | Result.Ok path      -> Result.Ok path
 
   let clear_path_from_valid_piece
-    : Pc.color -> coord -> coord -> t -> (Sq.t list, bad_move) Result.t
+    : Pc.color -> coord -> coord -> t -> (Sq.t list, bad_move) result
     = fun color source target board ->
       let open Result.Infix in
       path_from_valid_piece color source target board
@@ -302,7 +302,7 @@ module Turn = struct
 
   open Result.Infix
 
-  type action = t -> coord -> coord -> (t, Board.bad_move) Result.t
+  type action = t -> coord -> coord -> (t, Board.bad_move) result
 
   let move : action
     = fun turn source target ->
@@ -331,12 +331,10 @@ module Update = struct
     | Fire of state
     | Move of state
 
-  type result = (t, Board.bad_move) Result.t
-
   let start : t = [Turn.first]
 
   let send
-    : msg -> result =
+    : msg -> (t, Board.bad_move) result =
     let take action {game; source; target} =
       match game with
       | [] -> raise Update_invalid

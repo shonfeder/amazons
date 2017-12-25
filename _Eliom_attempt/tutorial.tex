@@ -1,0 +1,64 @@
+% Created 2017-10-06 Fri 11:48
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{fixltx2e}
+\usepackage{graphicx}
+\usepackage{grffile}
+\usepackage{longtable}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{textcomp}
+\usepackage{amssymb}
+\usepackage{capt-of}
+\usepackage{hyperref}
+\author{Shon Feder}
+\date{\today}
+\title{}
+\hypersetup{
+ pdfauthor={Shon Feder},
+ pdftitle={},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 25.3.1 (Org mode 8.3.5)}, 
+ pdflang={English}}
+\begin{document}
+
+\tableofcontents
+
+\section{Main section}
+\label{sec:orgheadline2}
+
+This part describes some information about stuff.
+
+\subsection{A specific example}
+\label{sec:orgheadline1}
+
+Suppose we want to do such and such. Then we can:
+
+\begin{verbatim}
+let empty : t =
+  let coord_values = (Aux.range 0 9) in
+  let coords =
+    List.map (fun x -> List.map (fun y -> (x, y)) coord_values) coord_values
+    |> List.concat
+  in
+  List.map Sq.empty coords
+
+let square
+  : t -> coord -> Sq.t
+  = fun board coord' ->
+    let square_with_coord Sq.{coord} = (coord = coord') in
+    List.find square_with_coord board
+
+let select_square
+  : coord -> t -> (Sq.t * t)
+  = fun coord board ->
+    let square = square board coord  in
+    (square, List'.remove board square)
+\end{verbatim}
+
+And that's how we would!
+\end{document}

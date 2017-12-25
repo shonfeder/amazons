@@ -1,0 +1,31 @@
+* Main section
+
+This part describes some information about stuff.
+
+** A specific example
+
+   Suppose we want to do such and such. Then we can:
+
+   #+BEGIN_SRC ocaml
+   let empty : t =
+     let coord_values = (Aux.range 0 9) in
+     let coords =
+       List.map (fun x -> List.map (fun y -> (x, y)) coord_values) coord_values
+       |> List.concat
+     in
+     List.map Sq.empty coords
+
+   let square
+     : t -> coord -> Sq.t
+     = fun board coord' ->
+       let square_with_coord Sq.{coord} = (coord = coord') in
+       List.find square_with_coord board
+
+   let select_square
+     : coord -> t -> (Sq.t * t)
+     = fun coord board ->
+       let square = square board coord  in
+       (square, List'.remove board square)
+   #+END_SRC
+
+   And that's how we would!

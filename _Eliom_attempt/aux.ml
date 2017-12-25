@@ -1,4 +1,3 @@
-
 let assoc_select : 'a -> ('a * 'b) list -> 'b * ('a * 'b) list
   = fun a assoc ->
     let b = List.assoc a assoc in

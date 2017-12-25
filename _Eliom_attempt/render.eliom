@@ -1,7 +1,15 @@
-
-let%server (signal : Game.t Eliom_shared.React.S.t), set
+let%server
+  (signal : Game.t Eliom_shared.React.S.t),
+  (update : (?step:React.step -> Game.t -> unit) Eliom_shared.Value.t)
   = Eliom_shared.React.S.create Game.Update.start
 
+(* TODO Adapt rendering to game move result output *)
+let%client update_game coord =
+  let game = Eliom_shared.React.S.value ~%signal in
+  Firebug.console##log (Js.string ("Selected:  " ^ Game.show_coord coord)) ;
+  match Game.Update.(send (Move { source = (3,0) ; target = coord ; game })) with
+  | Ok game -> ~%update game
+  | Error _ -> () (* XXX *)
 
 let%client alert_sq coordstr =
   Dom_html.window##alert(Js.string ("Square " ^ coordstr))
@@ -124,14 +132,15 @@ module Html = struct
     (* : Sq.t -> [> T.td ] t *)
     = fun sq ->
       let sq_coord = Sq.coord sq in
-      let coordstr = Text.Of.coord sq_coord in (* XXX *)
+      (* let coordstr = Text.Of.coord sq_coord in (\* XXX *\) *)
       let coord   = coord @@ sq_coord
       in
       let id      = ID.square sq
       and classes = Classes.square sq
       (* TODO Event handler should update react signal *)
       and onclick = Html.a_onclick [%client
-        fun _ -> alert_sq ~%coordstr
+        fun _ -> ( Firebug.console##log (Js.string "Hit!")
+                 ; update_game ~%sq_coord)
           (* Dom_html.window##alert(Js.string ("Square " ^ ~%coordstr)) *)
         ]
       and content = match Sq.(sq.piece) with
@@ -156,7 +165,7 @@ module Html = struct
       let xs = range
       and ys = range
       in
-      let nth_row y = map (fun x -> (y, x)) xs in
+      let nth_row y = map (fun x -> (x, y)) xs in
       let row_of_squares coords = map (Board.square board) coords
       in
       let rows_of_squares = map (row_of_squares % nth_row) ys |> List.rev in
