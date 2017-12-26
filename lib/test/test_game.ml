@@ -2,6 +2,8 @@ open Core
 open QCheck
 open Game
 
+exception Testing
+
 module GameGen = struct
   let coord
     : (int * int) Gen.t
@@ -96,6 +98,13 @@ module Arbitrary = struct
 
 end
 
+module Aux = struct
+  let place_exn coord piece board =
+    match Board.(place coord piece empty) with
+    | Error _ -> raise Testing (* This should be impossible *)
+    | Ok board -> board
+end
+
 let tests = [
   Test.make
     ~name:"reading coords"
@@ -124,9 +133,9 @@ let tests = [
     Arbitrary.Piece.t
     begin let open Piece in
       fun {color; kind} ->
-      (color = Black || color = White)
-      &&
-      (kind = Amazon || kind = Arrow)
+        (color = Black || color = White)
+        &&
+        (kind = Amazon || kind = Arrow)
     end
   ;
   Test.make
@@ -160,6 +169,30 @@ let tests = [
     begin fun (coord, board) ->
       let (sq, rest) = Board.select_square coord board in
       List.length rest = 99
+    end
+  ;
+  Test.make
+    ~name:"can retrieve piece placed on board"
+    Arbitrary.(pair coord Piece.t)
+    begin fun (coord, piece) ->
+      let board = Board.empty in
+      match Board.place coord piece board with
+      | Error _  -> false
+      | Ok board ->
+        let piece' = Board.square board coord |> Square.piece in
+        piece' = Some piece
+    end
+  ;
+  Test.make
+    ~name:"placing piece on an occupied square returns an Occupied bad_move"
+    Arbitrary.(pair coord Piece.t)
+    begin fun (coord, piece) ->
+      let board = Aux.place_exn coord piece Board.empty in
+      let sq = Board.square board coord in
+      match Board.place coord piece board with
+      | Ok _ -> false
+      | Error Board.{reason} ->
+        reason = Board.(Occupied sq)
     end
 ]
 

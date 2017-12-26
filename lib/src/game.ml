@@ -140,8 +140,8 @@ module Board = struct
       let square = square board coord  in
       (square, List.filter ~f:(fun x -> not (x = square)) board)
 
-  (** [place coord piece board] is the [Result.Ok board'] of placing [piece] on
-      the empty position on [board] designated by [coord], or the [Result.Error
+  (** [place coord piece board] is the [Ok board'] of placing [piece] on
+      the empty position on [board] designated by [coord], or the [Error
       (sq:Sq.t)] of the designed [sq:Sq.t] which is already occupied by a
       piece *)
   let place
@@ -166,19 +166,19 @@ module Board = struct
         else Error {reason = Invalid_piece square; board}
       | None -> Error {reason = Empty square; board}
 
-  (* let setup : t =
-   *   let open Result.Monad_infix in
-   *   let empty_board = Result.Ok empty
-   *   and starting_positions =
-   *     [ Pc.Black, (6,9) ; Pc.Black, (9,6) ; Pc.Black, (6,0) ; Pc.Black, (9,3)
-   *     ; Pc.White, (0,6) ; Pc.White, (3,9) ; Pc.White, (0,3) ; Pc.White, (3,0) ]
-   *   in
-   *   let place boardM (color, coord) =
-   *     boardM >>= fun board -> place coord Piece.(make color Amazon) board
-   *   in
-   *   match List.fold_left ~f:place ~init:empty_board starting_positions with
-   *   | Ok board -> board (\* Return a set up board, *\)
-   *   | Error _  -> empty (\* or an empty board*\) *)
+  let setup : t =
+    let open Result.Monad_infix in
+    let empty_board = Result.Ok empty
+    and starting_positions =
+      [ Pc.Black, (6,9) ; Pc.Black, (9,6) ; Pc.Black, (6,0) ; Pc.Black, (9,3)
+      ; Pc.White, (0,6) ; Pc.White, (3,9) ; Pc.White, (0,3) ; Pc.White, (3,0) ]
+    in
+    let place boardM (color, coord) =
+      boardM >>= fun board -> place coord Piece.(make color Amazon) board
+    in
+    match List.fold_left ~f:place ~init:empty_board starting_positions with
+    | Ok board -> board (* Return a set up board, *)
+    | Error _  -> empty (* or an empty board*)
 
   let line_of_squares
     : coord -> coord -> t -> Sq.t list option
