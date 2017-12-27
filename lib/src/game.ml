@@ -63,6 +63,8 @@ module Piece = struct
 end
 
 module Square = struct
+  (** A square is a [{coord : coord; piece : Piece.t option}] where
+      an empty square is designated by [piece = Nothing]. *)
   type t =
     { coord : coord
     ; piece : Piece.t option}
@@ -93,6 +95,8 @@ module Board = struct
   type t =
     Sq.t list
   [@@deriving show]
+
+  exception Board
 
   type illegal_move =
     | Blocked       of Sq.t
@@ -153,38 +157,37 @@ module Board = struct
 
   (** [remove coord board] is the [Result.Ok (pc:Pc.t, board')] of removing
       [piece] from the [sq:Sq.t] on the [board] designated by [coord], or the
-      [Result.Error (sq:Sq.t)] of the designated [sq:Sq.t] which is empty or
-      ocuppied by an (imovable) [Pc.Arrow] *)
+      [Error {reason; board}] where [reason] is either an [Empty square] or an
+      [Occupied square] by an (imovable) [Pc.Arrow] *)
   let remove
     : coord -> t -> (Pc.t * t, bad_move) result
     = fun coord board ->
-      let (square, board') = select_square coord board in
-      match Sq.piece square with
+      let (sq, board') = select_square coord board in
+      match Sq.piece sq with
       | Some piece ->
         if Piece.is_amazon piece
-        then Ok (piece, board')
-        else Error {reason = Invalid_piece square; board}
-      | None -> Error {reason = Empty square; board}
+        then Ok (piece, Sq.{sq with piece = None} :: board')
+        else Error {reason = Invalid_piece sq; board}
+      | None -> Error {reason = Empty sq; board}
 
   let setup : t =
-    let open Result.Monad_infix in
     let empty_board = Result.Ok empty
     and starting_positions =
       [ Pc.Black, (6,9) ; Pc.Black, (9,6) ; Pc.Black, (6,0) ; Pc.Black, (9,3)
       ; Pc.White, (0,6) ; Pc.White, (3,9) ; Pc.White, (0,3) ; Pc.White, (3,0) ]
     in
+    let open Result.Monad_infix in
     let place boardM (color, coord) =
       boardM >>= fun board -> place coord Piece.(make color Amazon) board
     in
     match List.fold_left ~f:place ~init:empty_board starting_positions with
-    | Ok board -> board (* Return a set up board, *)
-    | Error _  -> empty (* or an empty board*)
+    | Ok board -> board       (* Return a set up board, *)
+    | Error _  -> raise Board (* Should be impossible *)
 
   let line_of_squares
     : coord -> coord -> t -> Sq.t list option
     = fun a b board ->
       let singleton ls = List.length ls = 1 in
-      let same_length ls ms = List.length ls = List.length ms in
       let repeat_to_length a ls = List.init (List.length ls) ~f:(fun _ -> a)
       in
       let (x1, y1) = min a b
@@ -194,14 +197,13 @@ module Board = struct
       and ys = List.range y1 y2
       in
       let sequence_option =
-        if      singleton xs      then Some (repeat_to_length x1 ys, ys)
-        else if singleton ys      then Some (xs, repeat_to_length y1 xs)
-        else if same_length xs ys then Some (xs, ys)
-        else None
+        if singleton xs then Some (repeat_to_length x1 ys, ys) else
+        if singleton ys then Some (xs, repeat_to_length y1 xs)
+        else Some (xs, ys)
       in
       let open Option.Monad_infix in
       sequence_option
-      >>= fun (xs, ys) -> Some (List.zip_exn xs ys)
+      >>= fun (xs, ys) -> List.zip xs ys
       >>= fun coords   -> Some (List.map ~f:(square board) coords)
 
   let path_between

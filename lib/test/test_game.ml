@@ -194,6 +194,44 @@ let tests = [
       | Error Board.{reason} ->
         reason = Board.(Occupied sq)
     end
+  ;
+  Test.make
+    ~name:"removing pieces returns correct values"
+    Arbitrary.(pair coord Board.t)
+    begin fun (coord, board) ->
+      let Square.{piece} as sq = Board.square board coord
+      in
+      let piece_is_arrow = Option.exists ~f:Piece.is_arrow piece in
+      let square_was_empty sq' = Square.is_empty sq && Square.is_empty sq' in
+      let piece_is_removed piece' board' =
+        (Some piece') = piece && Square.is_empty (Board.square board' coord)
+      in
+      match Board.remove coord board with
+      | Error {reason = Invalid_piece _ } -> piece_is_arrow
+      | Error {reason = Empty sq'}        -> square_was_empty sq'
+      | Ok (piece', board')               -> piece_is_removed piece' board'
+      | _                                 -> false
+    end
+  ;
+  Test.make
+    ~name:"board setup is correct"
+    unit
+    begin fun () ->
+      let black_positions = [(6,9) ; (9,6) ; (6,0) ; (9,3)] in
+      let white_positions = [(0,6) ; (3,9) ; (0,3) ; (3,0)] in
+      let sq_coords_in coord_list Square.{coord} =
+        List.mem ~equal:((=)) coord_list coord in
+      let is_black_sq sq = sq_coords_in black_positions sq in
+      let is_white_sq sq = sq_coords_in white_positions sq in
+      let has_white_piece sq = Option.exists ~f:Piece.is_white @@ Square.piece sq in
+      let has_black_piece sq = Option.exists ~f:Piece.is_black @@ Square.piece sq in
+      let board = Board.setup in
+      let (black_squares, rest) = List.partition_tf ~f:is_black_sq board in
+      let (white_squares, rest) = List.partition_tf ~f:is_white_sq rest in
+      List.for_all white_squares ~f:has_white_piece &&
+      List.for_all black_squares ~f:has_black_piece &&
+      List.for_all rest ~f:Square.is_empty
+    end
 ]
 
 let () = QCheck_runner.run_tests_main tests
