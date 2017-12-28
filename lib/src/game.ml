@@ -1,5 +1,7 @@
 open Core
 
+let (%) f g = fun x -> f (g x)
+
 type coord = (int * int)
 [@@deriving show(* , yojson *)]
 
@@ -216,17 +218,15 @@ module Board = struct
   let all_squares_are_empty : Sq.t list -> bool
     = List.for_all ~f:Sq.is_empty
 
-  (** [only_empty_squares squares] is [Result.Ok squares] if all the squares are
-      empty or else [Result.Error illegal_move] indicating the first in the list
-      and the first non-empty square *)
+  (** [only_empty_squares squares] is [Ok squares] if all the squares are empty
+      or else [Error {reason; board}] where [reason] is [Blocked occupied_sq],
+      indicating the first non-empty square. *)
   let only_empty_squares
     : Sq.t list -> (Sq.t list, bad_move) result
-    = fun squares -> match List.find ~f:Sq.is_empty squares with
-      | None ->
-        Result.Ok squares
-      | Some occupied_sq ->
-        Result.Error { reason = Blocked occupied_sq
-                     ; board  = squares }
+    = fun squares -> match List.find ~f:(not % Sq.is_empty) squares with
+      | None             -> Ok squares
+      | Some occupied_sq -> Error { reason = Blocked occupied_sq
+                                  ; board  = squares }
   (* [squares] is not actually a board here, but it'll do... *)
 
   let path_from_valid_piece

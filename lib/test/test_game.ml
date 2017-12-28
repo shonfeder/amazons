@@ -63,7 +63,7 @@ module GameGen = struct
         let wht_arr_sqs =
           List.map ~f:(place_piece_on_sq Game.Piece.(white Arrow)) wht_arr_sqs
         in
-        amazon_sqs @ blk_arr_sqs @ wht_arr_sqs @ rest
+        Gen.shuffle_l (amazon_sqs @ blk_arr_sqs @ wht_arr_sqs @ rest) rand
   end
 
 end
@@ -103,6 +103,21 @@ module Aux = struct
     match Board.(place coord piece empty) with
     | Error _ -> raise Testing (* This should be impossible *)
     | Ok board -> board
+
+  let rec is_ascending_sequence = function
+    | x1::x2::xs -> x2 = (x1 + 1) && is_ascending_sequence (x2::xs)
+    | _          -> true
+
+  let is_single_value ls =
+    1 = List.length @@ Caml.List.sort_uniq compare ls
+
+  let are_in_a_line sqs =
+    let coords = List.map ~f:Square.coord sqs in
+    let (xs, ys) = List.unzip coords in
+    coords = (List.sort coords ~cmp:compare) &&
+    (is_ascending_sequence xs || is_single_value xs) &&
+    (is_ascending_sequence ys || is_single_value ys)
+
 end
 
 let tests = [
@@ -236,25 +251,26 @@ let tests = [
   Test.make
     ~name:"line_of_squares only returns squares on a line"
     Arbitrary.(pair coord coord)
-    begin fun (a, b) ->
-      let rec is_ascending_sequence = function
-        | x1::x2::xs -> x2 = (x1 + 1) && is_ascending_sequence (x2::xs)
-        | _          -> true
-      in
-      let is_single_value ls =
-        1 = List.length @@ Caml.List.sort_uniq compare ls
-      in
-      let are_in_a_line sqs =
-        let coords = List.map ~f:Square.coord sqs in
-        let (xs, ys) = List.unzip coords in
-        List.sort ~cmp:compare coords = coords &&
-        (is_ascending_sequence xs || is_single_value xs) &&
-        (is_ascending_sequence ys || is_single_value ys)
-      in
-      match Board.line_of_squares a b Board.empty with
-      | Some squares -> are_in_a_line squares
+    begin fun (source, target) ->
+      match Board.line_of_squares source target Board.empty with
+      | Some squares -> Aux.are_in_a_line squares
       | None         -> true
     end
+  ;
+  Test.make
+    ~name:"only_empty_squares returns correctly on empty and non-empty squares"
+    Arbitrary.(pair Board.t int)
+    begin fun (board, n) ->
+      let sqs = List.take board n in
+      match Board.only_empty_squares sqs with
+      | Ok squares ->
+        List.for_all squares ~f:Square.is_empty
+      | Error { reason = Blocked occupied_sq } ->
+        not (Square.is_empty occupied_sq)
+      | _ ->
+        false
+    end
 ]
+
 
 let () = QCheck_runner.run_tests_main tests
