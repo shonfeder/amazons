@@ -232,6 +232,29 @@ let tests = [
       List.for_all black_squares ~f:has_black_piece &&
       List.for_all rest ~f:Square.is_empty
     end
+  ;
+  Test.make
+    ~name:"line_of_squares only returns squares on a line"
+    Arbitrary.(pair coord coord)
+    begin fun (a, b) ->
+      let rec is_ascending_sequence = function
+        | x1::x2::xs -> x2 = (x1 + 1) && is_ascending_sequence (x2::xs)
+        | _          -> true
+      in
+      let is_single_value ls =
+        1 = List.length @@ Caml.List.sort_uniq compare ls
+      in
+      let are_in_a_line sqs =
+        let coords = List.map ~f:Square.coord sqs in
+        let (xs, ys) = List.unzip coords in
+        List.sort ~cmp:compare coords = coords &&
+        (is_ascending_sequence xs || is_single_value xs) &&
+        (is_ascending_sequence ys || is_single_value ys)
+      in
+      match Board.line_of_squares a b Board.empty with
+      | Some squares -> are_in_a_line squares
+      | None         -> true
+    end
 ]
 
 let () = QCheck_runner.run_tests_main tests

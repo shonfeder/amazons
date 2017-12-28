@@ -187,18 +187,18 @@ module Board = struct
   let line_of_squares
     : coord -> coord -> t -> Sq.t list option
     = fun a b board ->
-      let singleton ls = List.length ls = 1 in
+      let is_singleton ls = List.length ls = 1 in
       let repeat_to_length a ls = List.init (List.length ls) ~f:(fun _ -> a)
       in
       let (x1, y1) = min a b
       and (x2, y2) = max a b
       in
-      let xs = List.range x1 x2
-      and ys = List.range y1 y2
+      let xs = List.range x1 x2 ~stop:`inclusive
+      and ys = List.range y1 y2 ~stop:`inclusive
       in
       let sequence_option =
-        if singleton xs then Some (repeat_to_length x1 ys, ys) else
-        if singleton ys then Some (xs, repeat_to_length y1 xs)
+        if is_singleton xs then Some (repeat_to_length x1 ys, ys) else
+        if is_singleton ys then Some (xs, repeat_to_length y1 xs)
         else Some (xs, ys)
       in
       let open Option.Monad_infix in
