@@ -4,6 +4,11 @@ open Game
 
 exception Testing
 
+let check
+  : bool -> name:string -> bool
+  = fun test ~name ->
+    test || (Printf.printf "check failed: %s\n" name; false)
+
 module GameGen = struct
   let coord
     : (int * int) Gen.t
