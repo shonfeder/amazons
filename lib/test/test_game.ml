@@ -272,6 +272,46 @@ let tests = [
       | _ ->
         false
     end
+  ;
+  Test.make
+    ~name:"path_from_valid_piece returns correctly on valid and invalid paths"
+    Arbitrary.(quad Piece.color coord coord Board.t)
+    begin fun (color, source, target, board) ->
+      let source_sq = Bd.square board source
+      and target_sq = Bd.square board target
+      in
+      let amazon_of_color p = Pc.(is_amazon p && is_color color p)
+      in
+      match Bd.path_from_valid_piece color source target board with 
+      | Ok path ->
+        check ~name:"path is ok"
+          (Sq.piece_is ~f:amazon_of_color source_sq &&
+           Sq.is_empty target_sq)
+      | Error {board; reason} ->
+        match reason with
+        | Bd.Empty _ ->
+          check
+            ~name:"square is empty"
+            (Sq.is_empty source_sq)
+        | Bd.Invalid_piece _ ->
+          check
+            ~name:"piece is invalid"
+            (not @@ Sq.piece_is ~f:Pc.is_amazon source_sq)
+        | Bd.Wrong_color _ ->
+          check
+            ~name:"color is wrong"
+            (Sq.piece_is ~f:Pc.is_amazon source_sq &&
+             not @@ Sq.piece_is ~f:Pc.(is_color color) source_sq)
+        | Bd.Occupied _ ->
+          check
+            ~name:"target is occupied"
+            (not @@ Sq.is_empty target_sq)
+        | Bd.Invalid_move _ ->
+          true (* This should be tested in line_of_squares *)
+        | _ ->
+          false
+    end
+  ;
 ]
 
 

@@ -232,6 +232,18 @@ module Board = struct
                                   ; board  = squares }
   (* [squares] is not actually a board here, but it'll do... *)
 
+  (** [path_from_valid_piece color source_coord target_coord board] is the [Ok
+      (path:Square.t list)] between the squares designated by the [source_coord]
+      and [target_coord], if valid, or else an [Error (bad:bad_mode)], where
+      [bad.reason] is
+
+      - [Empty source] if the source square is unoccupied
+      - [Wrong_color source] if the [source:Square.t] does *not* contain a
+        [piece:Piece.t] where [piece.color = Piece.Black]
+      - [Invalid_piece source] if the [source:Square.t] does *not* contain a
+        [piece:Piece.t] where [piece.piece = Piece.Amazon]
+      - [Invalid_move (source, target)] if there is not a straight path
+        between [source:Square.t] and [target:Square.t] *)
   let path_from_valid_piece
     : Pc.color -> coord -> coord -> t -> (Sq.t list, bad_move) result
     = fun color source_coord target_coord board ->
@@ -241,20 +253,18 @@ module Board = struct
       in
       let valid_path =
         match Sq.piece source with
-        | None -> Result.Error (Empty source)
+        | None -> Error (Empty source)
         | Some pc ->
-          if
-            not (Pc.is_color color pc) then Result.Error (Wrong_color   source)
-          else if
-            not (Pc.is_amazon pc)      then Result.Error (Invalid_piece source)
-          else
-            match path_opt with
-            | None      -> Result.Error (Invalid_move (source, target))
-            | Some path -> Result.Ok path
+          if not (Pc.is_amazon pc)      then Error (Invalid_piece source) else
+          if not (Pc.is_color color pc) then Error (Wrong_color source) else
+          if not (Sq.is_empty target)   then Error (Occupied target)
+          else match path_opt with
+            | None      -> Error (Invalid_move (source, target))
+            | Some path -> Ok path
       in
       match valid_path with
-      | Result.Error reason -> Result.Error {board; reason}
-      | Result.Ok path      -> Result.Ok path
+      | Error reason -> Error {board; reason}
+      | Ok path      -> Ok path
 
   let clear_path_from_valid_piece
     : Pc.color -> coord -> coord -> t -> (Sq.t list, bad_move) result
