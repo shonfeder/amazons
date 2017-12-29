@@ -88,6 +88,9 @@ module Square = struct
   let coord : t -> coord
     = fun {coord} -> coord
 
+  let piece_is
+    : f:(Piece.t -> bool) -> t -> bool
+    = fun ~f:f square -> Option.exists ~f square.piece
 end
 
 module Board = struct
