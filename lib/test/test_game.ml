@@ -327,12 +327,36 @@ let tests = [
   Test.make
     ~name:"clear_path_from_valid_piece always returns clear ok paths or errors"
     Arbitrary.(quad Piece.color coord coord Board.t)
-    begin
-      fun (color, source, target, board) ->
+    begin fun (color, source, target, board) ->
         match Bd.clear_path_from_valid_piece color source target board with
         | Ok path -> List.for_all path ~f:Square.is_empty
         | _       -> true
 
+    end
+  ;
+  Test.make
+    ~name:"fire places an arrow or returns an Error"
+    Arbitrary.(quad Piece.color coord coord Board.t)
+    begin fun (color', source, target, board) ->
+      match Bd.fire color' source target board with
+      | Error _  -> true
+      | Ok board ->
+        match Bd.square board target with
+        | Sq.{piece = Some Pc.{kind = Arrow; color}} -> color = color'
+        | _                                          -> false
+    end
+  ;
+  Test.make
+    ~name:"move moves an amazon or returns an Error"
+    Arbitrary.(quad Piece.color coord coord Board.t)
+    begin fun (color', source, target, board) ->
+      match Bd.move color' source target board with
+      | Error _  -> true
+      | Ok board ->
+        match Bd.square board source, Bd.square board target with
+        | Sq.({piece = None}, {piece = Some Pc.{kind = Amazon; color}}) ->
+          color = color'
+        | _ -> false
     end
 ]
 

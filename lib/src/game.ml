@@ -288,6 +288,11 @@ module Board = struct
       path_from_valid_piece color source target board
       >>= only_empty_squares
 
+  (** [fire color source target board] is an [Ok board':Board.t], with a
+      [Piece.Arrow] of the appropriate [color] placed at the square indicated by
+      [target] on the [board] if possible, or an [Error ({board:
+      reason}:bad_mode)] where [reason:illegal_move] explains why the move isn't
+      possible. *)
   let fire
     : Pc.color -> coord -> coord -> t -> result_of_move
     = fun color source target board ->
@@ -295,6 +300,11 @@ module Board = struct
       clear_path_from_valid_piece color source target board
       >>= fun _ -> place target Pc.(make color Arrow) board
 
+  (** [move color source target board] is an [Ok board':Board.t], with the
+      [Piece.Amazon] at the square indicated by [source] moved to the square
+      indicated by [target] on [board] if possible, or an [Error ({board:
+      reason}:bad_mode)] where [reason:illegal_move] explaining why the move
+      isn't possible. *)
   let move
     : Pc.color -> coord -> coord -> t -> result_of_move
     = fun color source target board ->
