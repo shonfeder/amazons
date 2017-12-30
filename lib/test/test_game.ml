@@ -71,6 +71,15 @@ module GameGen = struct
           List.map ~f:(place_piece_on_sq Pc.(white Arrow)) wht_arr_sqs
         in
         Gen.shuffle_l (amazon_sqs @ blk_arr_sqs @ wht_arr_sqs @ rest) rand
+
+    let coord_of_amazon_with_color
+      : Pc.color -> Bd.t -> coord Gen.t
+      = fun color board rand ->
+        let is_square_with_amazon_of_color sq =
+          Result.is_ok (Bd.square_with_amazon_of_color color sq)
+        in
+        let squares = List.filter board ~f:is_square_with_amazon_of_color in
+        Sq.coord @@ Gen.oneofl squares rand
   end
 
 end
@@ -101,6 +110,12 @@ module Arbitrary = struct
     let t
       : Bd.t arbitrary
       = make ~print:Bd.show GameGen.Board.t
+
+    let coord_of_amazon_with_color
+      : Pc.color -> Bd.t -> coord arbitrary
+      = fun color board -> make
+          ~print:show_coord
+          (GameGen.Board.coord_of_amazon_with_color color board)
   end
 end
 
@@ -359,6 +374,7 @@ let board_tests =
 
 let turn_tests =
   [
+    (* TODO *)
   ]
 
 let game_tests =
