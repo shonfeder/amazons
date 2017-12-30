@@ -274,6 +274,18 @@ let tests = [
     end
   ;
   Test.make
+    ~name:"square_with_amazon_of_color returns the correct [Ok]s and [Error]s"
+    Arbitrary.(pair Piece.color Square.t)
+    begin fun (color', sq) ->
+      match Bd.square_with_amazon_of_color color' sq with
+      | Error Bd.(Empty         Sq.{piece = None})            -> true
+      | Error Bd.(Wrong_color   Sq.{piece = Some Pc.{color}}) -> color <> color'
+      | Error Bd.(Invalid_piece Sq.{piece = Some Pc.{kind}})  -> kind  = Pc.Arrow
+      | Ok    Sq.{piece = Some  Pc.{kind = Amazon; color}}    -> color = color'
+      | _                                                     -> false
+    end
+  ;
+  Test.make
     ~name:"path_from_valid_piece returns correctly on valid and invalid paths"
     Arbitrary.(quad Piece.color coord coord Board.t)
     begin fun (color, source, target, board) ->
