@@ -232,39 +232,54 @@ module Board = struct
                                   ; board  = squares }
   (* [squares] is not actually a board here, but it'll do... *)
 
+  (** [square_with_amazon_of_color sq color] is [Ok (sq:Square.t)] if
+      sq holds a [Piece.Amazon] of [color:Piece.color] or else
+
+      - [Empty source] if the [sq] is unoccupied
+      - [Invalid_piece source] if the [sq] does not contain a [Piece.Amazon]
+      - [Wrong_color source] if the piece on [sq] is not of [color] *)
+  let square_with_amazon_of_color
+    : Pc.color -> Sq.t -> (Sq.t, illegal_move) result
+    = fun expected_color sq -> match sq with
+      | Sq.{piece = None}                  -> Error (Empty sq)
+      | Sq.{piece = Some Pc.{kind; color}} ->
+        if kind  <> Amazon         then Error (Invalid_piece sq) else
+        if color <> expected_color then Error (Wrong_color sq)
+        else Ok sq
+
+  let free_square
+    : Sq.t -> (Sq.t, illegal_move) result
+    = fun sq ->
+      if Square.is_empty sq
+      then Ok sq
+      else Error (Occupied sq)
+
+  let valid_path
+    : Sq.t -> Sq.t -> t -> (Sq.t list, illegal_move) result
+    = fun source target board ->
+      let source_coord = Square.coord source
+      and target_coord = Square.coord target
+      in
+      match path_between source_coord target_coord board with
+      | Some path -> Ok path
+      | None      -> Error (Invalid_move (source, target))
+
   (** [path_from_valid_piece color source_coord target_coord board] is the [Ok
       (path:Square.t list)] between the squares designated by the [source_coord]
       and [target_coord], if valid, or else an [Error (bad:bad_mode)], where
-      [bad.reason] is
-
-      - [Empty source] if the source square is unoccupied
-      - [Wrong_color source] if the [source:Square.t] does *not* contain a
-        [piece:Piece.t] where [piece.color = Piece.Black]
-      - [Invalid_piece source] if the [source:Square.t] does *not* contain a
-        [piece:Piece.t] where [piece.piece = Piece.Amazon]
-      - [Invalid_move (source, target)] if there is not a straight path
-        between [source:Square.t] and [target:Square.t] *)
+      [bad.reason] is determined by [square_with_amazon_of_color] or is
+      [Invalid_move (source, target)] if there is not a straight path
+      between [source:Square.t] and [target:Square.t] *)
   let path_from_valid_piece
-    : Pc.color -> coord -> coord -> t -> (Sq.t list, bad_move) result
-    = fun color source_coord target_coord board ->
-      let source   = square board source_coord
-      and target   = square board target_coord
-      and path_opt = path_between source_coord target_coord board
-      in
-      let valid_path =
-        match Sq.piece source with
-        | None -> Error (Empty source)
-        | Some pc ->
-          if not (Pc.is_amazon pc)      then Error (Invalid_piece source) else
-          if not (Pc.is_color color pc) then Error (Wrong_color source) else
-          if not (Sq.is_empty target)   then Error (Occupied target)
-          else match path_opt with
-            | None      -> Error (Invalid_move (source, target))
-            | Some path -> Ok path
-      in
-      match valid_path with
-      | Error reason -> Error {board; reason}
-      | Ok path      -> Ok path
+  : Pc.color -> coord -> coord -> t -> (Sq.t list, bad_move) result
+  = fun color source_coord target_coord board ->
+    Result.map_error ~f:(fun reason -> {board; reason})
+      begin
+        let open Result.Monad_infix in
+        square_with_amazon_of_color color @@ square board source_coord
+        >>= fun source -> free_square     @@ square board target_coord
+        >>= fun target -> valid_path source target board
+      end
 
   let clear_path_from_valid_piece
     : Pc.color -> coord -> coord -> t -> (Sq.t list, bad_move) result
