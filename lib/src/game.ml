@@ -356,17 +356,18 @@ type t = Turn.t list
 [@@deriving show]
 
 module Update = struct
-
   exception Update_invalid
 
   type state = { game   : t
                ; source : coord
                ; target : coord }
+  [@@deriving show]
 
   type msg =
     | Start
     | Fire of state
     | Move of state
+  [@@deriving show]
 
   let start : t = [Turn.first]
 
