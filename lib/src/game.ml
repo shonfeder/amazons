@@ -321,10 +321,10 @@ module Turn = struct
     ; board : Board.t }
   [@@deriving show]
 
-  (* let first : t =
-   *   { color = Piece.White
-   *   ; board = Board.setup }
-   * [@@deriving yojson] *)
+  let first : t =
+    { color = Piece.White
+    ; board = Board.setup }
+  [@@deriving yojson]
 
   let switch
     : Piece.color -> Piece.color = function
@@ -368,21 +368,21 @@ module Update = struct
     | Fire of state
     | Move of state
 
-  (* let start : t = [Turn.first] *)
+  let start : t = [Turn.first]
 
-  (* let send
-   *   : msg -> (t, Board.bad_move) result =
-   *   let take action {game; source; target} =
-   *     match game with
-   *     | [] -> raise Update_invalid
-   *     | (turn :: _) as turns ->
-   *       let open Result.Monad_infix in
-   *       action turn source target
-   *       >>= fun turn' -> Result.Ok (turn' :: turns)
-   *   in
-   *   function
-   *   | Start      -> Result.Ok start
-   *   | Move state -> take Turn.move state
-   *   | Fire state -> take Turn.fire state *)
+  let send
+    : msg -> (t, Board.bad_move) result =
+    let take action {game; source; target} =
+      match game with
+      | [] -> raise Update_invalid
+      | (turn :: _) as turns ->
+        let open Result.Monad_infix in
+        action turn source target
+        >>= fun turn' -> Result.Ok (turn' :: turns)
+    in
+    function
+    | Start      -> Result.Ok start
+    | Move state -> take Turn.move state
+    | Fire state -> take Turn.fire state
 
 end
