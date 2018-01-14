@@ -1,0 +1,11 @@
+(jbuild_version 1)
+
+; (executable
+;  ((name       test_srv)
+;   (public_name test_srv)
+;   (libraries  (qcheck srv))))
+
+; (alias
+;  ((name runtest)
+;   (deps (test_srv.exe))
+;   (action (run ${<}))))

@@ -2,8 +2,8 @@
 
 (library
  ((name      game)
-  (public_name game)
+  (public_name game-of-the-amazons)
+  (modules game)
   (synopsis  "core logic for amazon game")
   (libraries (core))
   (preprocess (pps (ppx_deriving.std)))))
-

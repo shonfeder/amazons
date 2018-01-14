@@ -1,0 +1,15 @@
+lib: [
+  "_build/install/default/lib/game-of-the-amazons/META" {"META"}
+  "_build/install/default/lib/game-of-the-amazons/opam" {"opam"}
+  "_build/install/default/lib/game-of-the-amazons/game.cmi"
+  "_build/install/default/lib/game-of-the-amazons/game.cmx"
+  "_build/install/default/lib/game-of-the-amazons/game.cmt"
+  "_build/install/default/lib/game-of-the-amazons/game.ml"
+  "_build/install/default/lib/game-of-the-amazons/game.cma"
+  "_build/install/default/lib/game-of-the-amazons/game.cmxa"
+  "_build/install/default/lib/game-of-the-amazons/game.a"
+  "_build/install/default/lib/game-of-the-amazons/game.cmxs"
+]
+bin: [
+  "_build/install/default/bin/test_game" {"test_game"}
+]

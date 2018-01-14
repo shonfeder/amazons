@@ -1,0 +1,7 @@
+lib: [
+  "_build/install/default/lib/srv/META" {"META"}
+  "_build/install/default/lib/srv/opam" {"opam"}
+]
+bin: [
+  "_build/install/default/bin/srv" {"srv"}
+]

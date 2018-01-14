@@ -1,7 +1,0 @@
-lib: [
-  "_build/install/default/lib/amazons/META" {"META"}
-  "_build/install/default/lib/amazons/opam" {"opam"}
-]
-doc: [
-  "_build/install/default/doc/amazons/README.org"
-]

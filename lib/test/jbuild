@@ -3,7 +3,8 @@
 (executable
  ((name       test_game)
   (public_name test_game)
-  (libraries  (qcheck game))))
+  (libraries  (qcheck
+               game-of-the-amazons))))
 
 (alias
  ((name runtest)

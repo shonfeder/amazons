@@ -1,0 +1,12 @@
+(jbuild_version 1)
+
+(executable
+ ((name      srv)
+  (public_name srv)
+  (libraries (core
+              opium
+              tyxml
+              game-of-the-amazons))
+  (preprocess (pps (ppx_deriving.std
+                    ppx_deriving
+                    ppx_deriving_yojson)))))

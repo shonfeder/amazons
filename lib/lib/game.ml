@@ -2,23 +2,22 @@ open Core
 
 let (%) f g = fun x -> f (g x)
 
-type coord = (int * int)
-[@@deriving show(* , yojson *)]
+module Coord = struct
+  type t =
+    { x : int
+    ; y : int }
 
-exception Read_coord
-let read_coord
-  : string -> coord
-  = fun str ->
-  let parens_stripped = String.sub str 1 (String.length str - 2) in
-  let (a, b) =
-    match String.split ~on:',' parens_stripped with
-    | [a; b] -> (String.strip a, String.strip b)
-    | _      -> raise Read_coord
-  in
-  try
-    (int_of_string a, int_of_string b)
-  with
-  | Failure _ -> raise Read_coord
+  let min a b = let (x, y) = min (a.x, a.y) (b.x, b.y) in {x; y}
+  let max a b = let (x, y) = max (a.x, a.y) (b.x, b.y) in {x; y}
+
+  (* let show {x} *)
+  module Of = struct
+    let pair (x, y) = {x; y}
+  end
+  module To = struct
+    let pair {x; y} = (x, y)
+  end
+end
 
 module Piece = struct
   type kind =
@@ -65,17 +64,17 @@ module Piece = struct
 end
 
 module Square = struct
-  (** A square is a [{coord : coord; piece : Piece.t option}] where
+  (** A square is a [{coord : Coord.t; piece : Piece.t option}] where
       an empty square is designated by [piece = Nothing]. *)
   type t =
-    { coord : coord
+    { coord : Coord.t
     ; piece : Piece.t option}
   [@@deriving show]
 
-  let make : coord -> Piece.t -> t
+  let make : Coord.t -> Piece.t -> t
     = fun coord piece -> {coord; piece = Some piece}
 
-  let empty : coord -> t
+  let empty : Coord.t -> t
     = fun coord -> {coord; piece = None}
 
   let is_empty : t -> bool
@@ -85,7 +84,7 @@ module Square = struct
   let piece : t -> Piece.t option
     = fun {piece} -> piece
 
-  let coord : t -> coord
+  let coord : t -> Coord.t
     = fun {coord} -> coord
 
   let piece_is
@@ -127,7 +126,7 @@ module Board = struct
       List.map coord_values
         ~f:(fun x ->
             List.map coord_values
-              ~f:(fun y -> (x, y)))
+              ~f:(fun y -> Coord.{x; y}))
       |> List.concat
     in
     List.map coords
@@ -135,7 +134,7 @@ module Board = struct
 
   (** [square board coord] is the [square] on the [board] at [coord] *)
   let square
-    : t -> coord -> Sq.t
+    : t -> Coord.t -> Sq.t
     = fun board coord' ->
       let square_with_coord Sq.{coord} = (coord = coord') in
         List.find_exn ~f:square_with_coord board
@@ -144,7 +143,7 @@ module Board = struct
       square on [board] at [coord] and [rest] are all the squares on the board
       except [sq].*)
   let select_square
-    : coord -> t -> (Sq.t * t)
+    : Coord.t -> t -> (Sq.t * t)
     = fun coord board ->
       let square = square board coord  in
       (square, List.filter ~f:(fun x -> not (x = square)) board)
@@ -154,7 +153,7 @@ module Board = struct
       (sq:Sq.t)] of the designed [sq:Sq.t] which is already occupied by a
       piece *)
   let place
-    : coord -> Pc.t -> t -> result_of_move
+    : Coord.t -> Pc.t -> t -> result_of_move
     = fun coord piece board ->
       match select_square coord board with
       | Sq.{piece=None}, board' -> Ok (Sq.make coord piece :: board')
@@ -165,7 +164,7 @@ module Board = struct
       [Error {reason; board}] where [reason] is either an [Empty square] or an
       [Occupied square] by an (imovable) [Pc.Arrow] *)
   let remove
-    : coord -> t -> (Pc.t * t, bad_move) result
+    : Coord.t -> t -> (Pc.t * t, bad_move) result
     = fun coord board ->
       let (sq, board') = select_square coord board in
       match Sq.piece sq with
@@ -178,8 +177,11 @@ module Board = struct
   let setup : t =
     let empty_board = Result.Ok empty
     and starting_positions =
-      [ Pc.Black, (6,9) ; Pc.Black, (9,6) ; Pc.Black, (6,0) ; Pc.Black, (9,3)
-      ; Pc.White, (0,6) ; Pc.White, (3,9) ; Pc.White, (0,3) ; Pc.White, (3,0) ]
+      let open Coord in
+      [ Pc.Black, {x=0; y=6} ; Pc.Black, {x=3; y=9}
+      ; Pc.Black, {x=6; y=9} ; Pc.Black, {x=9; y=6}
+      ; Pc.White, {x=0; y=3} ; Pc.White, {x=3; y=0}
+      ; Pc.White, {x=6; y=0} ; Pc.White, {x=9; y=3} ]
     in
     let open Result.Monad_infix in
     let place boardM (color, coord) =
@@ -190,29 +192,29 @@ module Board = struct
     | Error _  -> raise Board (* Should be impossible *)
 
   let line_of_squares
-    : coord -> coord -> t -> Sq.t list option
+    : Coord.t -> Coord.t -> t -> Sq.t list option
     = fun a b board ->
       let is_singleton ls = List.length ls = 1 in
       let repeat_to_length a ls = List.init (List.length ls) ~f:(fun _ -> a)
       in
-      let (x1, y1) = min a b
-      and (x2, y2) = max a b
+      let min = Coord.min a b
+      and max = Coord.max a b
       in
-      let xs = List.range x1 x2 ~stop:`inclusive
-      and ys = List.range y1 y2 ~stop:`inclusive
+      let xs = List.range min.x max.x ~stop:`inclusive
+      and ys = List.range min.y max.y ~stop:`inclusive
       in
       let sequence_option =
-        if is_singleton xs then Some (repeat_to_length x1 ys, ys) else
-        if is_singleton ys then Some (xs, repeat_to_length y1 xs)
+        if is_singleton xs then Some (repeat_to_length min.x ys, ys) else
+        if is_singleton ys then Some (xs, repeat_to_length min.y xs)
         else Some (xs, ys)
       in
       let open Option.Monad_infix in
       sequence_option
       >>= fun (xs, ys) -> List.zip xs ys
-      >>= fun coords   -> Some (List.map ~f:(square board) coords)
+      >>| List.map ~f:(square board % Coord.Of.pair)
 
   let path_between
-    : coord -> coord -> t -> Sq.t list option
+    : Coord.t -> Coord.t -> t -> Sq.t list option
     = fun source target board ->
       let open Option.Monad_infix in
       line_of_squares source target board
@@ -271,7 +273,7 @@ module Board = struct
       [Invalid_move (source, target)] if there is not a straight path
       between [source:Square.t] and [target:Square.t] *)
   let path_from_valid_piece
-  : Pc.color -> coord -> coord -> t -> (Sq.t list, bad_move) result
+  : Pc.color -> Coord.t -> Coord.t -> t -> (Sq.t list, bad_move) result
   = fun color source_coord target_coord board ->
     Result.map_error ~f:(fun reason -> {board; reason})
       begin
@@ -282,7 +284,7 @@ module Board = struct
       end
 
   let clear_path_from_valid_piece
-    : Pc.color -> coord -> coord -> t -> (Sq.t list, bad_move) result
+    : Pc.color -> Coord.t -> Coord.t -> t -> (Sq.t list, bad_move) result
     = fun color source target board ->
       let open Result.Monad_infix in
       path_from_valid_piece color source target board
@@ -294,7 +296,7 @@ module Board = struct
       reason}:bad_mode)] where [reason:illegal_move] explains why the move isn't
       possible. *)
   let fire
-    : Pc.color -> coord -> coord -> t -> result_of_move
+    : Pc.color -> Coord.t -> Coord.t -> t -> result_of_move
     = fun color source target board ->
       let open Result.Monad_infix in
       clear_path_from_valid_piece color source target board
@@ -306,7 +308,7 @@ module Board = struct
       reason}:bad_mode)] where [reason:illegal_move] explaining why the move
       isn't possible. *)
   let move
-    : Pc.color -> coord -> coord -> t -> result_of_move
+    : Pc.color -> Coord.t -> Coord.t -> t -> result_of_move
     = fun color source target board ->
       let open Result.Monad_infix in
       clear_path_from_valid_piece color source target board
@@ -339,7 +341,7 @@ module Turn = struct
 
   open Result.Monad_infix
 
-  type action = t -> coord -> coord -> (t, Board.bad_move) result
+  type action = t -> Coord.t -> Coord.t -> (t, Board.bad_move) result
 
   let move : action
     = fun turn source target ->
@@ -358,9 +360,10 @@ type t = Turn.t list
 module Update = struct
   exception Update_invalid
 
-  type state = { game   : t
-               ; source : coord
-               ; target : coord }
+  type state =
+    { game   : t
+    ; source : Coord.t
+    ; target : Coord.t }
   [@@deriving show]
 
   type msg =

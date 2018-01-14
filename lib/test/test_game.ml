@@ -2,6 +2,7 @@ open Core
 open QCheck
 open Game
 
+module Co = Coord
 module Pc = Piece
 module Sq = Square
 module Bd = Board
@@ -14,9 +15,13 @@ let check
     test || (Printf.printf "check failed: %s\n" name; false)
 
 module GameGen = struct
-  let coord
-    : (int * int) Gen.t
-    = Gen.(pair (0 -- 9) (0 -- 9))
+  module Coord = struct
+    let t
+      : Coord.t Gen.t
+      = fun rand ->
+        Gen.(pair (0 -- 9) (0 -- 9) rand)
+        |> Coord.Of.pair
+  end
 
   module Piece = struct
     let kind
@@ -38,7 +43,7 @@ module GameGen = struct
     let t
       : Sq.t Gen.t
       = fun rand ->
-        { coord = coord rand
+        { coord = Coord.t rand
         ; piece = Gen.opt Piece.t rand }
   end
 
@@ -73,7 +78,7 @@ module GameGen = struct
         Gen.shuffle_l (amazon_sqs @ blk_arr_sqs @ wht_arr_sqs @ rest) rand
 
     let coord_of_amazon_with_color
-      : Pc.color -> Bd.t -> coord Gen.t
+      : Pc.color -> Bd.t -> Co.t Gen.t
       = fun color board rand ->
         let is_square_with_amazon_of_color sq =
           Result.is_ok (Bd.square_with_amazon_of_color color sq)
@@ -85,7 +90,12 @@ module GameGen = struct
 end
 
 module Arbitrary = struct
-  let coord = pair (0 -- 9) (0 -- 9)
+  module Coord = struct
+    let t
+      : Co.t arbitrary
+      = make ~print:Co.show GameGen.Coord.t
+  end
+
   module Piece = struct
     let kind
       : Pc.kind arbitrary
@@ -112,9 +122,9 @@ module Arbitrary = struct
       = make ~print:Bd.show GameGen.Board.t
 
     let coord_of_amazon_with_color
-      : Pc.color -> Bd.t -> coord arbitrary
+      : Pc.color -> Bd.t -> Co.t arbitrary
       = fun color board -> make
-          ~print:show_coord
+          ~print:Co.show
           (GameGen.Board.coord_of_amazon_with_color color board)
   end
 end
@@ -133,9 +143,9 @@ module Aux = struct
     1 = List.length @@ Caml.List.sort_uniq compare ls
 
   let are_in_a_line sqs =
-    let coords = List.map ~f:Sq.coord sqs in
-    let (xs, ys) = List.unzip coords in
-    coords = (List.sort coords ~cmp:compare) &&
+    let coord_pairs = List.map ~f:(Co.To.pair % Sq.coord) sqs in
+    let (xs, ys) = List.unzip coord_pairs in
+    coord_pairs = (List.sort coord_pairs ~cmp:compare) &&
     (is_ascending_sequence xs || is_single_value xs) &&
     (is_ascending_sequence ys || is_single_value ys)
 end
@@ -169,14 +179,14 @@ let square_tests =
   [
     Test.make
       ~name:"empty squares never have pieces on them"
-      Arbitrary.coord
+      Arbitrary.Coord.t
       begin fun coord ->
         (Sq.empty coord).piece = None
       end
     ;
     Test.make
       ~name:"all empty squares can be selected with valid coords on an empty board"
-      Arbitrary.coord
+      Arbitrary.Coord.t
       begin fun coord ->
         Sq.is_empty @@ Bd.square Bd.empty coord
       end
@@ -187,15 +197,15 @@ let board_tests =
     Test.make
       ~name:"getting a square with invalid coords raises"
       (pair (pair (10 -- 100) (10 -- 100)) Arbitrary.Board.t)
-      begin fun (coord, board) ->
-        match Bd.square board coord with
+      begin fun (pair, board) ->
+        match Bd.square board (Coord.Of.pair pair) with
         | exception Not_found -> true
         | _                   -> false
       end
     ;
     Test.make
       ~name:"select_square takes a square and leaves the rest"
-      Arbitrary.(pair coord Board.t)
+      Arbitrary.(pair Coord.t Board.t)
       begin fun (coord, board) ->
         let (sq, rest) = Bd.select_square coord board in
         List.length rest = 99
@@ -203,7 +213,7 @@ let board_tests =
     ;
     Test.make
       ~name:"can retrieve piece placed on board"
-      Arbitrary.(pair coord Piece.t)
+      Arbitrary.(pair Coord.t Piece.t)
       begin fun (coord, piece) ->
         let board = Bd.empty in
         match Bd.place coord piece board with
@@ -215,7 +225,7 @@ let board_tests =
     ;
     Test.make
       ~name:"placing piece on an occupied square returns an Occupied bad_move"
-      Arbitrary.(pair coord Piece.t)
+      Arbitrary.(pair Coord.t Piece.t)
       begin fun (coord, piece) ->
         let board = Aux.place_exn coord piece Bd.empty in
         let sq = Bd.square board coord in
@@ -226,7 +236,7 @@ let board_tests =
     ;
     Test.make
       ~name:"removing pieces returns correct values"
-      Arbitrary.(pair coord Board.t)
+      Arbitrary.(pair Coord.t Board.t)
       begin fun (coord, board) ->
         let Sq.{piece} as sq = Bd.square board coord
         in
@@ -246,8 +256,13 @@ let board_tests =
       ~name:"board setup is correct"
       unit
       begin fun () ->
-        let black_positions = [(6,9) ; (9,6) ; (6,0) ; (9,3)] in
-        let white_positions = [(0,6) ; (3,9) ; (0,3) ; (3,0)] in
+        let black_positions =
+          Coord.[ {x=0; y=6} ; {x=3; y=9}
+                ; {x=6; y=9} ; {x=9; y=6} ]
+        and white_positions =
+          Coord.[ {x=0; y=3} ; {x=3; y=0}
+                ; {x=6; y=0} ; {x=9; y=3} ]
+        in
         let sq_coords_in coord_list Sq.{coord} =
           List.mem ~equal:((=)) coord_list coord in
         let is_black_sq sq = sq_coords_in black_positions sq in
@@ -264,7 +279,7 @@ let board_tests =
     ;
     Test.make
       ~name:"line_of_squares only returns squares on a line"
-      Arbitrary.(pair coord coord)
+      Arbitrary.(pair Coord.t Coord.t)
       begin fun (source, target) ->
         match Bd.line_of_squares source target Bd.empty with
         | Some squares -> Aux.are_in_a_line squares
@@ -299,7 +314,7 @@ let board_tests =
     ;
     Test.make
       ~name:"path_from_valid_piece returns correctly on valid and invalid paths"
-      Arbitrary.(quad Piece.color coord coord Board.t)
+      Arbitrary.(quad Piece.color Coord.t Coord.t Board.t)
       begin fun (color, source, target, board) ->
         let source_sq = Bd.square board source
         and target_sq = Bd.square board target
@@ -338,7 +353,7 @@ let board_tests =
     ;
     Test.make
       ~name:"clear_path_from_valid_piece always returns clear ok paths or errors"
-      Arbitrary.(quad Piece.color coord coord Board.t)
+      Arbitrary.(quad Piece.color Coord.t Coord.t Board.t)
       begin fun (color, source, target, board) ->
         match Bd.clear_path_from_valid_piece color source target board with
         | Ok path -> List.for_all path ~f:Square.is_empty
@@ -348,7 +363,7 @@ let board_tests =
     ;
     Test.make
       ~name:"fire places an arrow or returns an Error"
-      Arbitrary.(quad Piece.color coord coord Board.t)
+      Arbitrary.(quad Piece.color Coord.t Coord.t Board.t)
       begin fun (color', source, target, board) ->
         match Bd.fire color' source target board with
         | Error _  -> true
@@ -360,7 +375,7 @@ let board_tests =
     ;
     Test.make
       ~name:"move moves an amazon or returns an Error"
-      Arbitrary.(quad Piece.color coord coord Board.t)
+      Arbitrary.(quad Piece.color Coord.t Coord.t Board.t)
       begin fun (color', source, target, board) ->
         match Bd.move color' source target board with
         | Error _  -> true
@@ -377,21 +392,9 @@ let turn_tests =
     (* TODO *)
   ]
 
-let game_tests =
-  [
-    Test.make
-      ~name:"reading coords"
-      Arbitrary.coord
-      begin fun coord ->
-        let coord_read = read_coord @@ show_coord coord in
-        coord_read = coord
-      end
-  ]
-
 let tests = piece_tests @
             square_tests @
             board_tests @
-            turn_tests @
-            game_tests
+            turn_tests
 
 let () = QCheck_runner.run_tests_main tests
