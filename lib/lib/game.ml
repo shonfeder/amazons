@@ -61,6 +61,11 @@ module Piece = struct
   let make : color -> kind -> t
     = fun color kind -> {color; kind}
 
+  let color_of_string
+    : string -> color option = function
+    | "Black" -> Some Black
+    | "White" -> Some White
+    | _       -> None
 end
 
 module Square = struct
