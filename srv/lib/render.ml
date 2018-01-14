@@ -16,7 +16,9 @@ module Text = struct
     (* let coord = Game.read_coord *)
   end
   module Of = struct
-    let coord = Game.Coord.show
+    let coord c =
+      Game.Coord.To.pair c
+      |> [%derive.show : int * int]
   end
 end
 
