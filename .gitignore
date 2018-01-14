@@ -1,12 +1,15 @@
 .#*
 *.bak
 .merlin
+
 _client/
 _deps/
 _build
 _server/
+
 studies/
 servant_sketch/
 _Eliom_attempt/
 local
+
 /.depend
