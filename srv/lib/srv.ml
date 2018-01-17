@@ -3,8 +3,35 @@ open Opium.Std
 module T = Tyxml
 module H = T.Html
 
+module G = Game
+
 exception Invalid_request of Opium_kernel__Rock.Request.t
 exception Game_room_full
+
+type game_id = int
+type game_state =
+  { id       : game_id
+  ; game     : Game.t
+  ; selected : Game.Coord.t option }
+
+let games : game_state option array ref =
+  ref (Array.init ~f:(fun _ -> None) 1000)
+
+let create_game () : game_state =
+  let game = Game.Update.start
+  and selected = None
+  in
+  let add_new_game id =
+    let game_state = {id; game; selected} in
+    Array.set (!games) id (Some game_state) ;
+    game_state
+  in
+  match Array.findi (!games) ~f:(fun _ -> Option.is_none) with
+  | Some (indx, _) -> add_new_game indx
+  | None           -> raise Game_room_full
+
+let lookup_game indx : game_state option = (!games).(indx)
+
 
 module Page = struct
   let default_css = "/assets/css/amazons.css"
@@ -32,29 +59,14 @@ module Page = struct
   let game_title game_id =
     "New Game of the Amazons: #" ^ string_of_int game_id
 
-  let game game game_id =
-    let title = game_title game_id in
+  let game ?(content=[]) {game; id} =
+    let title = game_title id in
     respond ~title @@
-    [T.Html.div
-       [ page_h1 title
-       ; Render.Html.game game ]]
+    [ H.div
+        ([ page_h1 title
+         ; Render.Html.game game ]
+         @ content )]
 end
-
-type game_id = int
-let games : Game.t option array ref =
-  ref (Array.init ~f:(fun _ -> None) 1000)
-
-let create_game () : Game.t * game_id =
-  let new_game = Game.Update.start in
-  let add_new_game game_id =
-    Array.set (!games) game_id (Some new_game) ;
-    (new_game, game_id)
-  in
-  match Array.findi (!games) ~f:(fun _ -> Option.is_none) with
-  | Some (indx, _) -> add_new_game indx
-  | None           -> raise Game_room_full
-
-let lookup_game indx : Game.t option = (!games).(indx)
 
 let new_game_link =
   T.Html.(a ~a:[a_href "/game/new"] [pcdata "New Game"])
@@ -71,11 +83,9 @@ let home = get "/"
     end
 
 let new_game = get "/game/new"
-    begin fun req ->
-      let game, game_id = create_game () in
-      let open T.Html in
+    begin fun _req ->
       (* TODO redirect to game/:id page *)
-      Page.game game game_id
+      Page.game @@ create_game ()
     end
 
 let game = get "/game/:id"
@@ -86,26 +96,40 @@ let game = get "/game/:id"
       in
       let open T.Html in
       match lookup_game game_id with
-        | Some game -> Page.game game game_id
-        | None      -> Page.respond [div [ h1 [pcdata "That game doesn't exist!"]
-                                         ; p  [new_game_link]]]
+        | Some game_state -> Page.game game_state
+        | None            -> Page.respond
+                               [div [ h1 [pcdata "That game doesn't exist!"]
+                                    ; p  [new_game_link]]]
     end
 
-(* (\* select an amazon for movement *\)
- * let select_amazon = get "/game/:id/select/:color/:coord"
- *     begin fun req ->
- *       let color = match param req "color" |> Game.Piece.color_of_string with
- *         | Some c -> c
- *         | None   -> raise (Invalid_request req)
- *       in
- *       match square_with_amazon_of_color
- *       let coord = param req "coord" |> Json.To.coord in
- *       Page.make [H.p [H.pcdata @@
- *                       Printf.sprintf
- *                         "x is: %i and y is: %i"
- *                         coord.x coord.y]]
- *       |> respond'
- *     end *)
+let select_amazon = get "/game/:id/select/amazon/:color/:coord"
+    begin fun req ->
+      let coord = param req "coord" |> Json.To.coord in
+      let id    = param req "id"    |> int_of_string in
+      let game_state = match lookup_game id with
+        | Some g -> g
+        | None   -> raise (Invalid_request req) (*XXX*)
+      in
+      let color = match param req "color" |> G.Piece.color_of_string with
+        | Some c -> c
+        | None   -> raise (Invalid_request req)
+      in
+      let board = Game.board game_state.game in
+      let f pc = G.Piece.(is_amazon pc && is_color color pc) in
+      if G.Square.piece_is ~f @@ G.Board.square board coord
+      then
+        Page.game
+          game_state
+          ~content:H.[p [pcdata @@ Render.Text.Of.coord coord]]
+      else
+        Page.respond
+          H.[ h1 [pcdata "Invalid selection"]
+            ; p  [pcdata @@ Printf.sprintf
+                    "Color is %s" (Game.Piece.show_color color)]
+            ; p  [pcdata @@ Printf.sprintf
+                    "x is: %i and y is: %i"
+                    coord.x coord.y]]
+    end
 
 let resources = middleware @@
   Middleware.static
@@ -118,5 +142,5 @@ let _ =
   |> home
   |> game
   |> new_game
-  (* |> select_amazon *)
+  |> select_amazon
   |> App.run_command

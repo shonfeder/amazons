@@ -6,6 +6,7 @@ module Coord = struct
   type t =
     { x : int
     ; y : int }
+  [@@deriving show]
 
   let min a b = let (x, y) = min (a.x, a.y) (b.x, b.y) in {x; y}
   let max a b = let (x, y) = max (a.x, a.y) (b.x, b.y) in {x; y}
@@ -359,8 +360,24 @@ module Turn = struct
       >>= fun board -> Result.Ok (next turn board)
 end
 
+exception Game
+
 type t = Turn.t list
 [@@deriving show]
+
+let board
+  : t -> Board.t = function
+  | {board} :: _ -> board
+  | _            -> raise Game
+
+(** Functions that map into parts of games *)
+module Map = struct
+  let board
+    : f:(Board.t -> Board.t) -> t -> t
+    = fun ~f -> function
+    | turn :: turns -> {turn with board = f turn.board} :: turns
+    | _             -> raise Game
+end
 
 module Update = struct
   exception Update_invalid
