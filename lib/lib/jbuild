@@ -5,5 +5,8 @@
   (public_name game-of-the-amazons)
   (modules game)
   (synopsis  "core logic for amazon game")
-  (libraries (core))
-  (preprocess (pps (ppx_deriving.std)))))
+  (libraries (core
+              yojson
+              ppx_deriving_yojson.runtime))
+  (preprocess (pps (ppx_deriving.std
+                    ppx_deriving_yojson)))))
