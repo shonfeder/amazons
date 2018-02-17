@@ -328,13 +328,13 @@ module Turn = struct
     | Select of Piece.kind
     | Move
     | Fire
-  [@@deriving show {with_path = false}]
+  [@@deriving show {with_path = false}, yojson]
 
   type t =
     { color : Piece.color
     ; stage : stage
     ; board : Board.t }
-  [@@deriving show]
+  [@@deriving show, yojson]
 
   let is_colors_turn
     : Piece.color -> t -> bool
@@ -344,7 +344,6 @@ module Turn = struct
     { color = Piece.White
     ; stage = Select Piece.Amazon
     ; board = Board.setup }
-  [@@deriving yojson]
 
   let switch
     : Piece.color -> Piece.color = function
@@ -380,7 +379,7 @@ end
 exception Game
 
 type t = Turn.t list
-[@@deriving show]
+[@@deriving show, yojson]
 
 let board
   : t -> Board.t = function
@@ -417,7 +416,7 @@ module Update = struct
     ; source : Coord.t option
     ; target : Coord.t option
     ; id     : int }
-  [@@deriving show]
+  [@@deriving show, yojson]
 
   type result = (state, Board.bad_move) Result.t
 
@@ -426,7 +425,7 @@ module Update = struct
     | Select of Coord.t * state
     | Fire   of state
     | Move   of state
-  [@@deriving show]
+  [@@deriving show, yojson]
 
   let start
     : int -> result
