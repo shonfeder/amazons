@@ -5,6 +5,21 @@
 ** TODO Makefile to build front and back ends
    - Execute bucklscript build :: =npm run build=
    - Execute jbuilder build :: =jbduiler build=
+** TODO API
+    - [ ] game/:id/board :: board html result
+    - [ ] game/:id/send/:msg :: result + board update side effect
+** TODO Implement moves
+   Basic logic of a move phase is as follows:
+
+    1. ajaj call to game/:id/msg/data
+    2. If valid:
+       - game state is updated
+       - json success message returned
+       - display of game is refreshed
+    3. else:
+       - json failure message returned
+*** TODO Select
+*** TODO Move
 * Tutorial
   Notes for a tutorial on getting started with Ocsigen
 ** Getting Tuareg and Merlin working correctly
