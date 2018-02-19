@@ -4,6 +4,8 @@
 
 .board {
     border-collapse: collapse;
+    max-width: 500px;
+    max-height: 500px;
 }
 
 .coord {
@@ -40,5 +42,12 @@
 }
 
 .piece.black {
+    background-color: #666666;
+}
+
+.piece.arrow {
+    height: 50%;
+    border-radius: 100px;
+    margin-top: 25%;
     background-color: #666666;
 }

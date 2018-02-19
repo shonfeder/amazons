@@ -6,18 +6,24 @@
    - Execute bucklscript build :: =npm run build=
    - Execute jbuilder build :: =jbduiler build=
 ** TODO API
-    - [ ] game/:id/board :: board html result
-    - [ ] game/:id/send/:msg :: result + board update side effect
+    - [X] =/api/game/board/:id= :: board html
+    - [X] =/api/game/state/:id= :: game_state json data
+    - [ ] =/api/game/act/:id/:coord= :: update a game state + return success
+         and new state
+    - [X] =/api/example/msg/:id/:msg_kind= :: return json of kind of message
 ** TODO Implement moves
    Basic logic of a move phase is as follows:
 
-    1. ajaj call to game/:id/msg/data
-    2. If valid:
-       - game state is updated
-       - json success message returned
-       - display of game is refreshed
-    3. else:
-       - json failure message returned
+    1. ajaj call to =/api/game/act/:id/:coord=
+    2. branch
+       - If valid:
+         1. game state is updated
+         2. json success message returned
+       - else:
+         1. json failure message returned
+    3. depending on result
+       - ajaj call to =/api/game/board/:id=, + replaces existing board html.
+       - show error message
 *** TODO Select
 *** TODO Move
 * Tutorial

@@ -13,3 +13,6 @@ lib: [
 bin: [
   "_build/install/default/bin/test_game" {"test_game"}
 ]
+doc: [
+  "_build/install/default/doc/game-of-the-amazons/README.org"
+]

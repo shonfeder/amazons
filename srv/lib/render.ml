@@ -88,7 +88,7 @@ module ID = struct
 
   let square
     : Sq.t -> 'a t
-    = id % Text.Of.coord % Sq.coord
+    = id % Yojson.Safe.to_string % Coord.to_yojson % Sq.coord
 end
 
 module Html = struct
@@ -100,6 +100,11 @@ module Html = struct
 
   type 'a t = 'a Html.elt
   exception Rendering
+
+  let color
+    = fun color ->
+      let color_str = Game.Piece.show_color color in
+      Html.(p [pcdata @@ Printf.sprintf "%s's turn" color_str])
 
   let piece
     (* : Pc.t -> [> T.div ] t *)
@@ -114,34 +119,31 @@ module Html = struct
       let open Html in
       div
         ~a:[Classes.coord coord]
-        [p [pcdata (Text.Of.coord coord)]]
+        [(* p [pcdata (Text.Of.coord coord)] *)]
 
   let square
-    (* : Sq.t -> [> T.td ] t *)
-    = fun sq ->
+    = fun turn sq ->
       let sq_coord = Sq.coord sq in
-      (* let coordstr = Text.Of.coord sq_coord in (\* XXX *\) *)
       let coord   = coord @@ sq_coord
       in
       let id      = ID.square sq
       and classes = Classes.square sq
       and content = match Sq.(sq.piece) with
-        | None    -> [coord]
-        | Some pc -> [coord; piece pc]
+        | None    -> Html.a [coord]
+        | Some pc -> Html.a [coord; piece pc]
       in
       Html.td
         ~a:[id; classes]
-        content
+        [content]
 
   let row
-    (* : Sq.t list -> [> T.tr ] t *)
-    = fun (sqs:Sq.t list) ->
-      let cells = List.map ~f:square sqs in
+    = fun turn (sqs:Sq.t list) ->
+      let cells = List.map ~f:(square turn) sqs in
       Html.tr cells
 
   let board
-    (* : Board.t -> [> T.table] t *)
-    = fun board ->
+    = fun turn ->
+      let board   = Game.Turn.(turn.board) in
       let classes = Classes.board board in
       let range   = List.range ~start:`inclusive ~stop:`inclusive 0 9 in
       let xs = range
@@ -160,16 +162,19 @@ module Html = struct
         List.map ~f ys |> List.rev
       in
       let rows_of_cells =
-        List.map ~f:row rows_of_squares
+        List.map ~f:(row turn) rows_of_squares
       in
       Html.table
         ~a:[classes]
         rows_of_cells
 
+  let turn
+    = fun t -> board t
+
   let game
     (* : Game.t -> [> T.table] t *)
     = function
-    | (t :: turns) -> board Game.Turn.(t.board)
-    | [] -> raise Rendering
+      | Game.Update.(t :: turns) -> turn t
+      | []                       -> raise Rendering
 
 end

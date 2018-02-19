@@ -115,12 +115,12 @@ module Board = struct
     | Invalid_move  of Sq.t * Sq.t
     | Invalid_piece of Sq.t
     | Wrong_color   of Sq.t
-  [@@deriving show]
+  [@@deriving show, yojson]
 
   type bad_move =
     { board  : t
     ; reason : illegal_move }
-  [@@deriving show]
+  [@@deriving show, yojson]
 
   type result_of_move =
     (t, bad_move) result
@@ -324,15 +324,8 @@ end
 
 module Turn = struct
 
-  type stage =
-    | Select of Piece.kind
-    | Move
-    | Fire
-  [@@deriving show {with_path = false}, yojson]
-
   type t =
     { color : Piece.color
-    ; stage : stage
     ; board : Board.t }
   [@@deriving show, yojson]
 
@@ -342,7 +335,6 @@ module Turn = struct
 
   let first : t =
     { color = Piece.White
-    ; stage = Select Piece.Amazon
     ; board = Board.setup }
 
   let switch
@@ -353,13 +345,8 @@ module Turn = struct
   let next
     : t -> Board.t -> t
     = fun turn board ->
-      let (stage, color) = match turn.stage with
-        | Select Piece.Amazon -> Move, turn.color
-        | Select Piece.Arrow  -> Fire, turn.color
-        | Move -> Fire, turn.color
-        | Fire -> Move, switch turn.color
-      in
-      {color; stage; board}
+      { color = switch turn.color
+      ; board }
 
   open Result.Monad_infix
 
@@ -409,12 +396,19 @@ module Update = struct
   module Pc = Piece
   module Bd = Board
 
-  exception Update_invalid
+  exception Update_invalid of string
+
+  type stage =
+    | Selecting
+    | Moving
+    | Firing
+  [@@deriving show {with_path = false}, yojson]
 
   type state =
     { game   : t
     ; source : Coord.t option
     ; target : Coord.t option
+    ; stage  : stage
     ; id     : int }
   [@@deriving show, yojson]
 
@@ -423,9 +417,14 @@ module Update = struct
   type msg =
     | Start  of int
     | Select of Coord.t * state
-    | Fire   of state
-    | Move   of state
+    | Fire   of Coord.t * state
+    | Move   of Coord.t * state
   [@@deriving show, yojson]
+
+  let id_of_msg
+    : msg -> int = function
+    | Start id -> id
+    | Select (_, s) | Fire (_, s) | Move (_, s) -> s.id
 
   let start
     : int -> result
@@ -433,12 +432,17 @@ module Update = struct
       Result.Ok { game   = [Turn.first]
                 ; source = None
                 ; target = None
+                ; stage  = Selecting
                 ; id }
 
   let select
-    : Coord.t -> state -> result
-    = fun source state ->
-      let game = state.game
+    : state -> result
+    = fun state ->
+      let source =
+        match state.source with
+        | Some source -> source
+        | None -> raise (Update_invalid "empty source when selecting")
+      and game = state.game
       in
       let board = board game
       and color = turn_color game
@@ -455,16 +459,14 @@ module Update = struct
       else
         Ok {state with source = Some source}
 
+  (* TODO: Refactor *)
   let send
     : msg -> result =
     let open Result.Monad_infix in
     let take action state =
       match state with
-      | {game   = []}
-      | {source = None}
-      | {target = None} ->
-        raise Update_invalid
-      | { game = (turn :: _) as turns
+      | { game  = [] }        -> raise (Update_invalid "no turns in game")
+      | { game   = (turn :: _) as turns
         ; source = Some source
         ; target = Some target } ->
         action turn source target >>= fun turn' ->
@@ -472,14 +474,31 @@ module Update = struct
                     with game   = turn' :: turns
                        ; source = None
                        ; target = None }
+      | {source = None} | {target = None} ->
+        raise (Update_invalid "No source or target in move")
     in
     function
     | Start id -> start id
-    | Select (source, state) -> select source state
-    | Fire state -> take Turn.fire state
-    | Move state ->
+    | Select (source, state) ->
+      select {state with source = (Some source)}
+    | Move (target, state) ->
+      (* The source of the piece moving is always given by the preceding select *)
+      take Turn.move {state with target = (Some target)}
+      >>| fun state' -> {state' with source = state.target}
+    | Fire (target, state) ->
       (* The source of arrow firing is always the target of the preceding move*)
-      take Turn.move state >>| fun state' ->
-      {state' with source = state.target}
+      take Turn.fire {state with target = (Some target)}
+
+  (* Makes the only possible move and advances the board to the next state *)
+  let move
+    : state -> Coord.t -> result
+    = fun state coord ->
+      let msg, next_stage = match state.stage with
+        | Selecting -> Select (coord, state), Moving
+        | Moving    -> Move   (coord, state), Firing
+        | Firing    -> Fire   (coord, state), Selecting
+      in
+      let open Result.Monad_infix in
+      send msg >>| fun state' -> { state' with stage = next_stage}
 
 end
