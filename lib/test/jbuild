@@ -4,7 +4,8 @@
  ((name       test_game)
   (public_name test_game)
   (libraries  (qcheck
-               game-of-the-amazons))))
+               game-of-the-amazons))
+  (preprocess (pps (ppx_deriving.std)))))
 
 (alias
  ((name runtest)

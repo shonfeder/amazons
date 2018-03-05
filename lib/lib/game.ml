@@ -243,9 +243,9 @@ module Board = struct
   (** [square_with_amazon_of_color sq color] is [Ok (sq:Square.t)] if
       sq holds a [Piece.Amazon] of [color:Piece.color] or else
 
-      - [Empty source] if the [sq] is unoccupied
-      - [Invalid_piece source] if the [sq] does not contain a [Piece.Amazon]
-      - [Wrong_color source] if the piece on [sq] is not of [color] *)
+      - [Empty sq] if the [sq] is unoccupied
+      - [Invalid_piece sq] if the [sq] does not contain a [Piece.Amazon]
+      - [Wrong_color sq] if the piece on [sq] is not of [color] *)
   let square_with_amazon_of_color
     : Pc.color -> Sq.t -> (Sq.t, illegal_move) result
     = fun expected_color sq -> match sq with
@@ -289,6 +289,9 @@ module Board = struct
         >>= fun target -> valid_path source target board
       end
 
+  (** [clear_path_from_valid_piece color source target board] is an Ok list of
+      squares describing the path from [source] to [target], if the path is
+      clear and the piece at source is an amazon. *)
   let clear_path_from_valid_piece
     : Pc.color -> Coord.t -> Coord.t -> t -> (Sq.t list, bad_move) result
     = fun color source target board ->
@@ -336,7 +339,11 @@ end
 
 module Turn = struct
 
+  (** The stages of a turn
 
+  - [Selecting]: Picking a [Piece.Amazon] to move
+  - [Moving]: Picking a free [sq:Sq.t] to move to
+  - [Firing]: Picking a free [sq:Sq.t] in which to fire a [Piece.Arrow] *)
   type stage =
     | Selecting
     | Moving
@@ -375,10 +382,15 @@ module Turn = struct
     | Moving    -> Firing
     | Firing    -> Selecting
 
-  open Result.Monad_infix
-
+  (** An action changes a turn, altering its state and advancing its stage,
+      based on the supplied coordinates *)
   type action = Coord.t -> t -> result
 
+  open Result.Monad_infix
+
+  (** [select source turn] adds the [source:Coord.t] to the [turn],
+      if it designates a [sq:Square.t] with a [Piece.Amazon] of the appropriate
+      color, and advances to [Moving:stage] *)
   let select : action
     = fun source turn ->
       match turn with
@@ -389,6 +401,8 @@ module Turn = struct
                     ; stage  = next_stage turn.stage }
       | _ -> raise (Invalid_transition (source, turn))
 
+  (** [move target turn] moves the [Piece.Amazon] at the [sq:Square.t]
+      designated by [turn.source:Coord.t] to [target] *)
   let move : action
     = fun target turn ->
       match turn with
@@ -400,6 +414,8 @@ module Turn = struct
                     ; source = Some target }
       | _ -> raise (Invalid_transition (target, turn))
 
+  (** [fire target turn] fires a [Piece.Arrow] from the [sq:Square.t]
+      designated by [turn.source:Coord.t] to [target] *)
   let fire : action
     = fun target turn ->
       match turn with

@@ -77,14 +77,32 @@ module GameGen = struct
         in
         Gen.shuffle_l (amazon_sqs @ blk_arr_sqs @ wht_arr_sqs @ rest) rand
 
-    let coord_of_amazon_with_color
-      : Pc.color -> Bd.t -> Co.t Gen.t
-      = fun color board rand ->
+    let coord_of_amazon_on_board
+      : (Co.t * Bd.t) Gen.t
+      = fun rand ->
+        let color = Piece.color rand in
+        let board = t rand
+        in
         let is_square_with_amazon_of_color sq =
           Result.is_ok (Bd.square_with_amazon_of_color color sq)
         in
         let squares = List.filter board ~f:is_square_with_amazon_of_color in
-        Sq.coord @@ Gen.oneofl squares rand
+        let coord = Sq.coord @@ Gen.oneofl squares rand in
+        (coord, board)
+  end
+
+  module Turn = struct
+    let stage
+      : Turn.stage Gen.t
+      = Gen.oneofl Turn.[Selecting; Moving; Firing]
+
+    let t
+      : Turn.t Gen.t
+      = fun rand ->
+        Turn.{ color  = Piece.color rand
+             ; stage  = stage rand
+             ; source = Gen.opt Coord.t rand
+             ; board  = Board.t rand }
   end
 
 end
@@ -121,11 +139,25 @@ module Arbitrary = struct
       : Bd.t arbitrary
       = make ~print:Bd.show GameGen.Board.t
 
-    let coord_of_amazon_with_color
-      : Pc.color -> Bd.t -> Co.t arbitrary
-      = fun color board -> make
-          ~print:Co.show
-          (GameGen.Board.coord_of_amazon_with_color color board)
+    let coord_of_amazon_on_board
+      : (Co.t * Bd.t) arbitrary
+      =
+      let show (coord, board) =
+        Printf.sprintf "coord: %s\nboard: %s\n"
+          (Co.show coord) (Bd.show board)
+      in make
+        ~print:show
+        GameGen.Board.coord_of_amazon_on_board
+  end
+
+  module Turn = struct
+    let stage
+      : Turn.stage arbitrary
+      = make ~print:Turn.show_stage GameGen.Turn.stage
+
+    let t
+      : Turn.t arbitrary
+      = make ~print:Turn.show GameGen.Turn.t
   end
 end
 
@@ -358,19 +390,23 @@ let board_tests =
         match Bd.clear_path_from_valid_piece color source target board with
         | Ok path -> List.for_all path ~f:Square.is_empty
         | _       -> true
-
       end
     ;
     Test.make
-      ~name:"fire places an arrow or returns an Error"
-      Arbitrary.(quad Piece.color Coord.t Coord.t Board.t)
-      begin fun (color', source, target, board) ->
-        match Bd.fire color' source target board with
-        | Error _  -> true
+      ~name:"select picks a square with an amazon or returns the correct Error"
+      Arbitrary.(triple Piece.color Coord.t Board.t)
+      begin fun (color', source, board) ->
+        match Bd.select color' source board with
         | Ok board ->
-          match Bd.square board target with
-          | Sq.{piece = Some Pc.{kind = Arrow; color}} -> color = color'
-          | _                                          -> false
+          (match Sq.piece @@ Bd.square board source with
+           | None                  -> false
+           | Some Pc.{color; kind} -> color = color' && kind = Pc.Amazon)
+        | Error {reason} ->
+          (match reason with
+           | Bd.Empty sq         -> Sq.is_empty sq
+           | Bd.Invalid_piece sq -> not @@ Sq.piece_is Pc.is_amazon sq
+           | Bd.Wrong_color sq   -> not @@ Sq.piece_is (Pc.is_color color') sq
+           | _ -> false)
       end
     ;
     Test.make
@@ -385,16 +421,94 @@ let board_tests =
             color = color'
           | _ -> false
       end
+    ;
+    Test.make
+      ~name:"fire places an arrow or returns an Error"
+      Arbitrary.(quad Piece.color Coord.t Coord.t Board.t)
+      begin fun (color', source, target, board) ->
+        match Bd.fire color' source target board with
+        | Error _  -> true
+        | Ok board ->
+          match Bd.square board target with
+          | Sq.{piece = Some Pc.{kind = Arrow; color}} -> color = color'
+          | _                                          -> false
+      end
   ]
 
 let turn_tests =
   [
-    (* TODO *)
+    Test.make
+      ~name:"selecting amazons returns the next stage or raises exception"
+      Arbitrary.(pair Coord.t Turn.t)
+      begin fun (source', turn) ->
+        match turn with
+        | { stage = Selecting; source = None; color; board } ->
+          let sq = Bd.square board source' in
+          let true_of_pc f = Sq.piece_is ~f sq in
+          let ps = [Pc.is_amazon; Pc.is_color color] in
+          let result = Turn.select source' turn in
+          (List.for_all ps ~f:true_of_pc
+           ==> (match result with
+               | Ok Turn.{stage = Moving; source} -> source = Some source'
+               | _                                -> false))
+          &&
+          (not (List.for_all ps ~f:true_of_pc)
+           ==> Result.is_error result)
+        | _ ->
+          (match Turn.select source' turn with
+           | exception (Turn.Invalid_transition _) -> true
+           | _ -> false)
+      end
+    ;
+    Test.make
+      ~name:"moving an amazon returns the next stage or raises"
+      Arbitrary.(triple Board.coord_of_amazon_on_board Turn.stage Coord.t)
+      begin fun ((source, board), stage, target) ->
+        let sq = Bd.square board source in
+        let Pc.{color} = Option.value_exn (Sq.piece sq) in
+        let turn = Turn.{color; stage; source = Some source; board} in
+        match Turn.move target turn with
+        | exception Turn.(Invalid_transition (_, _)) -> stage <> Turn.Moving
+        | Error _ -> true (* TODO: Do we need to test this? *)
+        | Ok Turn.{ color  = color'
+                  ; stage  = stage'
+                  ; source = source'
+                  ; board  = board' } ->
+          source' = Some target &&
+          stage'  = Turn.Firing &&
+          Bd.square board' source |> Sq.is_empty &&
+          Bd.square board' target |> Sq.piece_is ~f:Pc.is_amazon &&
+          Bd.square board' target |> Sq.piece_is ~f:(Pc.is_color color)
+      end
+    (* ;
+     * Test.make
+     *   ~name:"moving and firing advances to the next turn or raises"
+     *   Arbitrary.(pair Board.coord_of_amazon_on_board Coord.t)
+     *   begin fun ((source, board), target) ->
+     *     let sq = Bd.square board source in
+     *     let Pc.{color} = Option.value_exn (Sq.piece sq) in
+     *     let turn = Turn.{ color
+     *                     ; board
+     *                     ; stage  = Moving
+     *                     ; source = Some source }
+     *     in
+     *     let open Result.Monad_infix in
+     *     let path_check =
+     *       Board.clear_path_from_valid_piece color source target board
+     *     in
+     *     let result = Turn.move source turn >>= Turn.fire target in
+     *     (if (Result.is_ok path_check)
+     *     then (print_endline "Path check ok"; true)
+     *     else false) ==> Result.is_ok result
+     *   end *)
   ]
 
-let tests = piece_tests @
-            square_tests @
-            board_tests @
-            turn_tests
+let update_tests = []
+
+let tests = piece_tests
+          @ square_tests
+          @ board_tests
+          @ turn_tests
+          @ update_tests
 
 let () = QCheck_runner.run_tests_main tests
