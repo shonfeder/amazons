@@ -11,7 +11,6 @@ module Coord = struct
   let min a b = let (x, y) = min (a.x, a.y) (b.x, b.y) in {x; y}
   let max a b = let (x, y) = max (a.x, a.y) (b.x, b.y) in {x; y}
 
-  (* let show {x} *)
   module Of = struct
     let pair (x, y) = {x; y}
   end
@@ -22,17 +21,30 @@ end
 
 module Piece = struct
   type kind =
-    | Amazon
-    | Arrow
+    | Amazon  [@printer fun fmt _ -> fprintf fmt "&"]
+    | Arrow   [@printer fun fmt _ -> fprintf fmt "*"]
   [@@deriving show {with_path = false}, yojson]
+
   type color =
-    | Black
-    | White
+    | Black [@printer fun fmt _ -> fprintf fmt "B"]
+    | White [@printer fun fmt _ -> fprintf fmt "W"]
   [@@deriving show {with_path = false}, yojson]
+
   type t =
     { color : color
     ; kind  : kind }
-  [@@deriving show, yojson]
+  [@@deriving yojson]
+
+  (* E.g. '&W' *)
+  let show
+    : t -> string = function
+    | {color; kind = Arrow} -> "**"
+    | {color; kind} -> Printf.sprintf "%s%s" (show_kind kind) (show_color color)
+
+  let pp
+    : Format.formatter -> t -> unit
+    = fun fmt pc ->
+      Format.fprintf fmt "%s" (show pc)
 
   let is_color : color -> t -> bool
     = fun color' {color} -> color = color'
@@ -72,10 +84,28 @@ end
 module Square = struct
   (** A square is a [{coord : Coord.t; piece : Piece.t option}] where
       an empty square is designated by [piece = Nothing]. *)
+
+  let show_piece : Piece.t option -> string = function
+    | None                     -> "  "
+    | Some Piece.{kind; color} ->
+      if kind = Piece.Arrow
+      then Piece.show_kind kind
+      else (Piece.show_kind kind) ^ (Piece.show_color color)
+
   type t =
     { coord : Coord.t
-    ; piece : Piece.t option}
-  [@@deriving show, yojson]
+    ; piece : Piece.t option }
+  [@@deriving yojson]
+
+  let show
+    : t -> string = function
+    | {piece = Some pc} -> Piece.show pc
+    | {piece = None}    -> "  "
+
+  let pp
+    : Format.formatter -> t -> unit
+    = fun fmt sq ->
+      Format.fprintf fmt "%s" (show sq)
 
   let make : Coord.t -> Piece.t -> t
     = fun coord piece -> {coord; piece = Some piece}
@@ -104,7 +134,7 @@ module Board = struct
 
   type t =
     Sq.t list
-  [@@deriving show, yojson]
+  [@@deriving yojson]
 
   exception Board
 
@@ -115,28 +145,28 @@ module Board = struct
     | Invalid_move  of Sq.t * Sq.t
     | Invalid_piece of Sq.t
     | Wrong_color   of Sq.t
-  [@@deriving show, yojson]
+  (* [@@deriving show, yojson] *)
 
   type bad_move =
     { board  : t
     ; reason : illegal_move }
-  [@@deriving show, yojson]
+  (* [@@deriving show, yojson] *)
 
   type result_of_move =
     (t, bad_move) result
-  [@@deriving show]
+  (* [@@deriving show] *)
 
-  let empty : t =
+  (** A list of all the coords for the squares on the board,
+      starting from 0,0 *)
+  let square_coords =
     let coord_values = (List.range 0 10) in
-    let coords =
-      List.map coord_values
-        ~f:(fun x ->
-            List.map coord_values
-              ~f:(fun y -> Coord.{x; y}))
-      |> List.concat
-    in
-    List.map coords
-      ~f:Sq.empty
+    List.map coord_values
+      ~f:(fun x ->
+          List.map coord_values
+            ~f:(fun y -> Coord.{x; y}))
+    |> List.concat
+
+  let empty : t = List.map square_coords ~f:Sq.empty
 
   (** [square board coord] is the [square] on the [board] at [coord] *)
   let square
@@ -153,6 +183,45 @@ module Board = struct
     = fun coord board ->
       let square = square board coord  in
       (square, List.filter ~f:(fun x -> not (x = square)) board)
+
+  (** Break a list of squares into a list of lists of squares,
+      each list containing the 10 squares of it's row *)
+  let rows_of_squares
+    : t -> Sq.t list list =
+    fun board ->
+      let row_coords = List.chunks_of ~length:10 square_coords in
+      let append_row rows coords =
+        let add_sq row coord = row @ [square board coord] in
+        List.fold ~f:add_sq ~init:[] coords :: rows
+      in
+      List.fold ~f:append_row ~init:[] row_coords
+
+  (** E.g.
+     +--+--+--+ ... "horizontal_div"
+     |&W|  |**| ...
+     +--+--+--+ ...
+     ..............
+  *)
+  let show
+    : t -> string =
+    fun board ->
+      let horizontal_div =
+        let div_char n = if n = 0 || 0 = n mod 3 then '+' else '-' in
+        String.init 31 div_char
+      and show_row row =
+        let f acc sq = acc ^ Printf.sprintf "|%s" (Square.show sq) in
+        (List.fold ~f ~init:"" row) ^ "|"
+      in
+      let rows = rows_of_squares board
+      and f acc row =
+        Printf.sprintf "%s%s\n%s\n" acc horizontal_div (show_row row)
+      in
+      (List.fold ~f ~init:"" rows) ^ horizontal_div
+
+  let pp
+    : Format.formatter -> t -> unit
+    = fun fmt board ->
+      Format.fprintf fmt "%s" (show board)
 
   (** [place coord piece board] is the [Ok board'] of placing [piece] on
       the empty position on [board] designated by [coord], or the [Error
@@ -341,21 +410,21 @@ module Turn = struct
 
   (** The stages of a turn
 
-  - [Selecting]: Picking a [Piece.Amazon] to move
-  - [Moving]: Picking a free [sq:Sq.t] to move to
-  - [Firing]: Picking a free [sq:Sq.t] in which to fire a [Piece.Arrow] *)
+      - [Selecting]: Picking a [Piece.Amazon] to move
+      - [Moving]: Picking a free [sq:Sq.t] to move to
+      - [Firing]: Picking a free [sq:Sq.t] in which to fire a [Piece.Arrow] *)
   type stage =
     | Selecting
     | Moving
     | Firing
-  [@@deriving show {with_path = false}, yojson]
+  (* [@@deriving show {with_path = false}, yojson] *)
 
   type t =
     { color  : Piece.color
     ; stage  : stage
     ; source : Coord.t option
     ; board  : Board.t }
-  [@@deriving show, yojson]
+  (* [@@deriving show, yojson] *)
 
   exception Invalid_transition of Coord.t * t
 
@@ -441,7 +510,7 @@ end
 exception Game
 
 type t = Turn.t list
-[@@deriving show, yojson]
+(* [@@deriving show, yojson] *)
 
 (** [turn game] is the current [Turn.t] *)
 let turn
@@ -478,7 +547,7 @@ module Update = struct
   type state =
     { game : t
     ; id   : int }
-  [@@deriving show, yojson]
+  (* [@@deriving show, yojson] *)
 
   type result = (state, Board.bad_move) Result.t
 
